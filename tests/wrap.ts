@@ -36,13 +36,23 @@ Api.downloadServer(
     console.log("Finished");
     
     server = new Server(dl.dest);
-    server.setProperty("spawn-protection", 16);
     server.on("data", info => {
       server.write(info.toString());
     });
-
-    server.on("ready", () => {
-      // On server ready.
+    
+    server.on("ready", async () => {
+      // On server ready
+      server.getProperty("spawn-protection");
+      // await server.executeCustomCommand("op Lucasion09");
+      let sb = await server.executeCommand<"scoreboard">("scoreboard objectives add test trigger");
+      console.log(sb);
+      // let tr = await server.executeCommand<"trigger">("trigger test");
+      // console.log(tr);
     });
+
+    server.on("connect", async user => {
+      let sb = await server.executeCommand<"scoreboard">("execute if entity @a[name="+ user.username +"] scoreboard objectives set test 0");
+      // server.commands.scoreboard
+    })
   });
 });

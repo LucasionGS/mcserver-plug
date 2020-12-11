@@ -41,13 +41,17 @@ export class Server extends EventEmitter {
     })
   }
   
+  public getProperty<T extends keyof ServerProperties>(name: T): ServerProperties[T] {
+    return this.parseProperties()[name];
+  }
+  
   public setProperties(keyValues: Partial<ServerProperties>) {
     let p = this.parseProperties();
 
     for (const key in keyValues) {
       if (Object.prototype.hasOwnProperty.call(keyValues, key)) {
         const value = (keyValues as any)[key];
-        (p as any)[key] = value || null;
+        (p as any)[key] = value !== undefined && value !== null ? value : null;
       }
     }
 
@@ -55,7 +59,7 @@ export class Server extends EventEmitter {
     for (const key in p) {
       if (Object.prototype.hasOwnProperty.call(p, key)) {
         const v = (p as any)[key];
-        newText += key + "=" + (v || "") + "\n";
+        newText += key + "=" + (v !== undefined && v !== null ? v : "") + "\n";
       }
     }
 
@@ -63,7 +67,7 @@ export class Server extends EventEmitter {
   }
   
   private parseProperties() {
-    let properties: Partial<ServerProperties> = {};
+    let properties: ServerProperties = {} as ServerProperties;
     let text = fs.readFileSync(this.directoryPath + "/server.properties", "utf8");
     let matches = text.match(/(.+?)=(.*)/g);
 
@@ -71,9 +75,11 @@ export class Server extends EventEmitter {
       let newMatch = m.match(/(.+?)=(.*)/);
       let key = newMatch[1];
       let value: any = newMatch[2];
+
       if (value === "true") value = true;
       else if (value === "false") value = false;
-      else if (!isNaN(+value)) value = +value;
+      else if (value !== "" && value !== null && !isNaN(+value)) value = +value;
+
       (properties as any)[key] = value;
     });
 
@@ -83,16 +89,17 @@ export class Server extends EventEmitter {
   public executeCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
   public executeCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
   public executeCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>> {
-    let firstCmdWord = command.split(" ")[0];
+    let parts = command.split(" ");
+    let firstCmdWord = parts[0];
     if (this.commands.hasOwnProperty(firstCmdWord)) {
-      return (this.commands as any)[firstCmdWord]() as Promise<ConsoleInfo<CommandName>>;
+      return (this.commands as any)[firstCmdWord](parts.length == 1 ? parts.join(" ") : null) as Promise<ConsoleInfo<CommandName>>;
     } 
     else {
       return this.executeCustomCommand<CommandName>(command);
     }
   }
   
-  public executeCustomCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
+  public executeCustomCommand<CommandName extends keyof CommandMap = null>(command: string): Promise<ConsoleInfo<CommandName>>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo> {
     this.process.stdin.write(command + "\n");
@@ -177,14 +184,32 @@ export class Server extends EventEmitter {
 
   commands = {
     list: async () => {
-      let cmd = await this.executeCustomCommand("list");
-      let m = cmd.message.match(/^There are (\d+) of a max of (\d+) players online:/);
-      cmd.data = {
+      let info = await this.executeCustomCommand("list");
+      let m = info.message.match(/^There are (\d+) of a max of (\d+) players online:/);
+      info.data = {
         players: +m[1],
         maxPlayers: +m[2]
       }
-      return cmd;
-    }
+      return info;
+    },
+    trigger: async (text: string) => {
+      let info = await this.executeCustomCommand<"trigger">(text);
+      // let m = cmd.message.match(/^There are (\d+) of a max of (\d+) players online:/);
+      // cmd.data = {
+      //   players: +m[1],
+      //   maxPlayers: +m[2]
+      // }
+      return info;
+    },
+    scoreboard: async (text: string) => {
+      let info = await this.executeCustomCommand<"scoreboard">("scoreboard " + text);
+      // let m = cmd.message.match(/^There are (\d+) of a max of (\d+) players online:/);
+      // cmd.data = {
+      //   players: +m[1],
+      //   maxPlayers: +m[2]
+      // }
+      return info;
+    },
   }
 }
 
@@ -265,12 +290,20 @@ interface ServerProperties {
 
 type CommandMap = {
   list: CommandResponse.List;
+  trigger: CommandResponse.Trigger;
+  scoreboard: CommandResponse.Scoreboard
 }
 
 namespace CommandResponse {
   export interface List {
     players: number;
     maxPlayers: number;
+  }
+  export interface Trigger {
+    
+  }
+  export interface Scoreboard {
+    
   }
 }
 

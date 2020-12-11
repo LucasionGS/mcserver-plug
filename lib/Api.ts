@@ -2,6 +2,7 @@ import request from "request";
 import util from "./IonUtil";
 import * as fs from "fs";
 import { Network } from "ionew";
+import { Server } from "..";
 
 namespace Api {
   const queryUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
@@ -102,12 +103,13 @@ namespace Api {
     return p.promise;
   }
 
-  export async function downloadServer(release: Release | Promise<Release>, location: string) {
+  export async function downloadServer(release: Release | Promise<Release>, location: string, jarName = "server") {
     release = await release;
 
-    let p = util.promise();
+    if (jarName.endsWith(".jar")) jarName = jarName.substring(0, jarName.length - 4);
+    
     fs.mkdirSync(location, { recursive: true });
-    let dl = new Network.Download(release.downloads.server.url, location + "/server.jar");
+    let dl = new Network.Download(release.downloads.server.url, location + `/${jarName}.jar`);
     return dl;
   }
 }

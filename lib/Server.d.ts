@@ -18,11 +18,12 @@ export declare class Server extends EventEmitter {
     write(object: object): void;
     ready: boolean;
     setProperty<T extends keyof ServerProperties>(name: T, value: ServerProperties[T]): void;
+    getProperty<T extends keyof ServerProperties>(name: T): ServerProperties[T];
     setProperties(keyValues: Partial<ServerProperties>): void;
     private parseProperties;
     executeCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
     executeCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
-    executeCustomCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
+    executeCustomCommand<CommandName extends keyof CommandMap = null>(command: string): Promise<ConsoleInfo<CommandName>>;
     executeCustomCommand(command: string): Promise<ConsoleInfo>;
     fileName: string;
     directoryPath: string;
@@ -33,7 +34,9 @@ export declare class Server extends EventEmitter {
     stop(force?: boolean): void;
     process: cp.ChildProcess;
     commands: {
-        list: () => Promise<ConsoleInfo<"list">>;
+        list: () => Promise<ConsoleInfo<null>>;
+        trigger: (text: string) => Promise<ConsoleInfo<"trigger">>;
+        scoreboard: (text: string) => Promise<ConsoleInfo<"scoreboard">>;
     };
 }
 export interface Server extends EventEmitter {
@@ -108,11 +111,17 @@ interface ServerProperties {
 }
 declare type CommandMap = {
     list: CommandResponse.List;
+    trigger: CommandResponse.Trigger;
+    scoreboard: CommandResponse.Scoreboard;
 };
 declare namespace CommandResponse {
     interface List {
         players: number;
         maxPlayers: number;
+    }
+    interface Trigger {
+    }
+    interface Scoreboard {
     }
 }
 declare type ConsoleInfoMessageType = "INFO" | "WARN" | "NODEJS";

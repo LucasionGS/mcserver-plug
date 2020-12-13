@@ -2,8 +2,10 @@
 import * as cp from "child_process";
 import { EventEmitter } from "events";
 import { User } from "./User";
+import * as readline from "readline";
 export declare class Server extends EventEmitter {
     constructor(serverJarPath: string);
+    terminal: readline.Interface;
     /**
      * Write console info to the output.
      */
@@ -23,6 +25,8 @@ export declare class Server extends EventEmitter {
     private parseProperties;
     executeCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
     executeCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
+    executeIonCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
+    executeIonCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
     executeCustomCommand<CommandName extends keyof CommandMap = null>(command: string): Promise<ConsoleInfo<CommandName>>;
     executeCustomCommand(command: string): Promise<ConsoleInfo>;
     fileName: string;
@@ -38,6 +42,11 @@ export declare class Server extends EventEmitter {
         trigger: (text: string) => Promise<ConsoleInfo<"trigger">>;
         scoreboard: (text: string) => Promise<ConsoleInfo<"scoreboard">>;
     };
+    ionCommands: {
+        clear: () => ConsoleInfo<null>;
+        list: () => Promise<ConsoleInfo<null>>;
+    };
+    clear(): void;
 }
 export interface Server extends EventEmitter {
     /**
@@ -141,11 +150,12 @@ declare namespace CommandResponse {
 declare type ConsoleInfoMessageType = "INFO" | "WARN" | "NODEJS";
 declare class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     constructor(data: string);
+    static create(message: string): ConsoleInfo;
     static create(options: {
         sender?: string;
         messageType?: ConsoleInfoMessageType;
         message: string;
-    }): void;
+    }): ConsoleInfo;
     /**
      * Convert object into a string.
      */

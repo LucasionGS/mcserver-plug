@@ -38,9 +38,14 @@ const fs = __importStar(require("fs"));
 const path_1 = require("path");
 const Configuration_1 = require("../lib/Configuration");
 const symlink_dir_1 = __importDefault(require("symlink-dir"));
+const os_1 = require("os");
 var IonMC;
 (function (IonMC) {
-    IonMC.ionmcDir = path_1.resolve((process.env.HOMEDRIVE || "") + process.env.HOMEPATH, ".ionmc");
+    let pf = os_1.platform();
+    let path = pf == "win32" ? process.env.HOMEDRIVE + process.env.HOMEPATH :
+        pf == "linux" ? process.env.HOME :
+            "";
+    IonMC.ionmcDir = path_1.resolve(path, ".ionmc");
     if (fs.existsSync(IonMC.ionmcDir)) {
         IonMC.globalServersPath = path_1.resolve(IonMC.ionmcDir, "servers");
         !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
@@ -315,18 +320,20 @@ ${packageJson.displayName} CLI.
     ionmc update [@]<server name> latest | latest-snapshot - Update a server to a latest release or snapshot
 
     ionmc list - Show the list of global and current directory servers.
-    ionmc setglobal - Add a server to the global server list.
-                      All global servers can be accessed via @ and the name of the server from any directory.
+    ionmc setglobal <server name> - Add a server to the global server list.
+                                    All global servers can be accessed via @
+                                    and the name of the server from any directory.
 
     ionmc start [[@][ <path to directory> | <path to jar> | <path to server.js> ]] - Start a server.
 
     Explainations:
-    [@] means using creating/using a global server. Global servers are installed in "${IonMC.globalServersPath}".
+    [@] means using creating/using a global server.
+    Global servers are installed in "${IonMC.globalServersPath}".
     They can be accessed from any directory by adding @ in front of the server name.
     Downloading a global server example: ionmc download "@My Server" latest
     Starting a global server example: ionmc start "@My Server"
 
-    If a server name is not found in the current directory, but DOES exist in the global server folder,
+    If a server name is not found in the current directory, but does exist in the global server folder,
     it will open the global server even without using "@".
 `);
 }

@@ -5,6 +5,7 @@ import { EventEmitter } from "events";
 import util from "./IonUtil";
 import { User } from "./User";
 import { stdout } from "process";
+import * as readline from "readline";
 
 export class Server extends EventEmitter {
   constructor(serverJarPath: string) {
@@ -13,7 +14,24 @@ export class Server extends EventEmitter {
 
     this.process = this.start();
     process.openStdin();
+
+    this.terminal = readline.createInterface(process.stdin);
+    this.terminal.on("line", line => {
+      if (!line.startsWith("@")) {
+        // Minecraft command
+        this.executeCustomCommand(line);
+      }
+      else {
+        // IonMC command.
+        let cmd = line.substring(1);
+        this.executeIonCommand(cmd).then(res => {
+          if (res.data) this.write(res.data);
+        });
+      }
+    })
   }
+
+  terminal: readline.Interface;
 
   /**
    * Write console info to the output.
@@ -96,6 +114,22 @@ export class Server extends EventEmitter {
     } 
     else {
       return this.executeCustomCommand<CommandName>(command);
+    }
+  }
+  
+  public executeIonCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
+  public executeIonCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
+  public executeIonCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>> {
+    let parts = command.split(" ");
+    let firstCmdWord = parts[0];
+    if (this.ionCommands.hasOwnProperty(firstCmdWord)) {
+      return (this.ionCommands as any)[firstCmdWord](parts.length == 1 ? parts.join(" ") : null) as Promise<ConsoleInfo<CommandName>>;
+    }
+    else {
+      this.write(ConsoleInfo.create({
+        message: `Command "${firstCmdWord}" doesn't exist.`,
+        messageType: "WARN"
+      }))
     }
   }
   
@@ -219,6 +253,19 @@ export class Server extends EventEmitter {
       return info;
     },
   }
+
+  ionCommands = {
+    clear: () => {
+      this.clear();
+      return ConsoleInfo.create("Screen cleared.");
+    },
+
+    list: () => this.commands["list"](),
+  }
+
+  clear() {
+    console.clear();
+  }
 }
 
 export interface Server extends EventEmitter {
@@ -329,7 +376,7 @@ namespace CommandResponse {
   }
 }
 
-type ConsoleInfoMessageType = "INFO" | "WARN" | "NODEJS";
+type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
 
 class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   constructor(data: string) {
@@ -340,15 +387,27 @@ class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     this.message = m[4];
   }
 
+  static create(message: string): ConsoleInfo;
   static create(options: {
     sender?: string,
     messageType?: ConsoleInfoMessageType,
     message: string
-  }) {
-    throw "Not yet implemented.";
+  }): ConsoleInfo;
+  static create(options: string | {
+    sender?: string,
+    messageType?: ConsoleInfoMessageType,
+    message: string
+  }): ConsoleInfo {
+    if (typeof options == "string") options = {
+      message: options,
+    }
+    let date = new Date();
     let info = new ConsoleInfo(
-      ``
+      `[${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}] [${options.sender || "IonMC"}/${options.messageType || "INFO"}]: ${options.message}`
     );
+    
+
+    return info;
   }
 
   /**

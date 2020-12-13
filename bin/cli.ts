@@ -6,10 +6,21 @@ import * as fs from "fs";
 import { basename, dirname, resolve } from "path";
 import { Config } from "../lib/Configuration";
 import ln from "symlink-dir";
+import { platform } from "os";
 
 namespace IonMC {
+  let pf = platform();
+  let path =
+  pf == "win32" ? process.env.HOMEDRIVE + process.env.HOMEPATH :
+  pf == "linux" ? process.env.HOME :
+  false;
+  if (path === false) {
+    throw new Error("Unsupported system for CLI. Supported systems are Windows and Linux for the CLI.");
+  }
   export var globalServersPath: string;
-  export const ionmcDir = resolve((process.env.HOMEDRIVE || "") + process.env.HOMEPATH, ".ionmc");
+  export const ionmcDir = resolve(
+    path,
+    ".ionmc");
   if (fs.existsSync(ionmcDir)) {
     IonMC.globalServersPath = resolve(ionmcDir, "servers");
     !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
@@ -335,18 +346,20 @@ ${packageJson.displayName} CLI.
     ionmc update [@]<server name> latest | latest-snapshot - Update a server to a latest release or snapshot
 
     ionmc list - Show the list of global and current directory servers.
-    ionmc setglobal - Add a server to the global server list.
-                      All global servers can be accessed via @ and the name of the server from any directory.
+    ionmc setglobal <server name> - Add a server to the global server list.
+                                    All global servers can be accessed via @
+                                    and the name of the server from any directory.
 
     ionmc start [[@][ <path to directory> | <path to jar> | <path to server.js> ]] - Start a server.
 
     Explainations:
-    [@] means using creating/using a global server. Global servers are installed in "${IonMC.globalServersPath}".
+    [@] means using creating/using a global server.
+    Global servers are installed in "${IonMC.globalServersPath}".
     They can be accessed from any directory by adding @ in front of the server name.
     Downloading a global server example: ionmc download "@My Server" latest
     Starting a global server example: ionmc start "@My Server"
 
-    If a server name is not found in the current directory, but DOES exist in the global server folder,
+    If a server name is not found in the current directory, but does exist in the global server folder,
     it will open the global server even without using "@".
 `);
 }

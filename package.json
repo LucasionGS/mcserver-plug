@@ -1,8 +1,8 @@
 {
-  "name": "mcserver-plug",
+  "name": "ionmc",
   "displayName": "IonMC Server Utility",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "A management tool for downloading, updating, running, and interacting with minecraft servers.",
   "main": "index.js",
   "directories": {
     "lib": "lib",

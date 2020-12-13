@@ -37,9 +37,10 @@ const IonUtil_1 = __importDefault(require("../lib/IonUtil"));
 const fs = __importStar(require("fs"));
 const path_1 = require("path");
 const Configuration_1 = require("../lib/Configuration");
+const symlink_dir_1 = __importDefault(require("symlink-dir"));
 var IonMC;
 (function (IonMC) {
-    IonMC.ionmcDir = path_1.resolve(process.env.HOMEDRIVE ? process.env.HOMEDRIVE : "" + process.env.HOMEPATH, ".ionmc");
+    IonMC.ionmcDir = path_1.resolve((process.env.HOMEDRIVE || "") + process.env.HOMEPATH, ".ionmc");
     if (fs.existsSync(IonMC.ionmcDir)) {
         IonMC.globalServersPath = path_1.resolve(IonMC.ionmcDir, "servers");
         !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
@@ -57,192 +58,251 @@ catch (error) {
         version: "Undeterminable"
     };
 }
-var [operator, object, version] = process.argv.slice(2);
-(() => __awaiter(void 0, void 0, void 0, function* () {
-    if (operator) {
-        if (operator == "download") {
-            if (!object) {
-                return help();
-            }
-            if (object.startsWith("@")) {
-                if (!version)
-                    version = object.substring(1);
-                object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
-            }
-            else {
-                if (!version)
-                    version = object;
-            }
-            let fullPath = path_1.resolve(object);
-            if (fs.existsSync(fullPath)) {
-                return console.log(`Path "${fullPath}" already exists`);
-            }
-            let serverVersion = yield __1.Api.getVersions()
-                .then(res => {
-                switch (version) {
-                    case "latest":
-                    case "l":
-                        return res.versions.find(v => v.id == res.latest.release);
-                    case "latest-snapshot":
-                    case "ls":
-                        return res.versions.find(v => v.id == res.latest.snapshot);
-                    default:
-                        return res.versions.find(v => v.id == version);
+var [operator, object, version, extra1,] = process.argv.slice(2);
+// Operator Aliases
+switch (operator) {
+    case "run":
+        operator = "start";
+        break;
+    case "up":
+        operator = "update";
+        break;
+    case "ls":
+        operator = "list";
+        break;
+    default:
+        break;
+}
+(function command() {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (operator) {
+            if (operator == "download") {
+                if (!object) {
+                    return help();
                 }
-            });
-            if (!serverVersion) {
-                return console.log(`Error: Unable to find version "${version}"`);
-            }
-            fs.mkdirSync(fullPath, { recursive: true });
-            console.clear();
-            __1.Api.downloadServer(__1.Api.getRelease(serverVersion), fullPath, "server").then(dl => {
-                dl.on("data", (_, r, t) => {
-                    let received = new IonUtil_1.default.Byte(r);
-                    let total = new IonUtil_1.default.Byte(t);
-                    process.stdout.cursorTo(0, 0);
-                    console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-                        + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
-                });
-                dl.on("finish", () => {
-                    console.log("Finished download.\n", "Start the using command `ionmc start` in the directory.\n");
-                    Configuration_1.Config.init(fullPath, serverVersion.id);
-                });
-            });
-        }
-        else if (operator == "start") {
-            object || (object = "./");
-            let objectType;
-            if (object.startsWith("@")) {
-                object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
-            }
-            if (fs.existsSync(object)) { }
-            else if (fs.existsSync(path_1.resolve(IonMC.globalServersPath, object))) {
-                object = path_1.resolve(IonMC.globalServersPath, object);
-            }
-            else {
-                return console.log("Given path does not exist.");
-            }
-            if (object.endsWith(".js"))
-                objectType = "js";
-            else if (object.endsWith(".jar"))
-                objectType = "jar";
-            else
-                objectType = "dir";
-            let config = Configuration_1.Config.load(object);
-            if (objectType == "dir") {
-                let jarPath = path_1.resolve(object, "server.jar");
-                let jsPath = path_1.resolve(object, "server.js");
-                if (fs.existsSync(jsPath)) {
-                    object = jsPath;
-                    objectType = "js";
-                }
-                else if (fs.existsSync(jarPath)) {
-                    object = jarPath;
-                    objectType = "jar";
+                if (object.startsWith("@")) {
+                    if (!version)
+                        version = object.substring(1);
+                    object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
                 }
                 else {
-                    return console.log(`This directory doesn't contain a server.js or server.jar`);
+                    if (!version)
+                        version = object;
+                }
+                let fullPath = path_1.resolve(object);
+                if (fs.existsSync(fullPath)) {
+                    return console.log(`Path "${fullPath}" already exists`);
+                }
+                let serverVersion = yield __1.Api.getVersions()
+                    .then(res => {
+                    switch (version) {
+                        case "latest":
+                        case "l":
+                            return res.versions.find(v => v.id == res.latest.release);
+                        case "latest-snapshot":
+                        case "ls":
+                            return res.versions.find(v => v.id == res.latest.snapshot);
+                        default:
+                            return res.versions.find(v => v.id == version);
+                    }
+                });
+                if (!serverVersion) {
+                    return console.log(`Error: Unable to find version "${version}"`);
+                }
+                fs.mkdirSync(fullPath, { recursive: true });
+                console.clear();
+                __1.Api.downloadServer(__1.Api.getRelease(serverVersion), fullPath, "server").then(dl => {
+                    dl.on("data", (_, r, t) => {
+                        let received = new IonUtil_1.default.Byte(r);
+                        let total = new IonUtil_1.default.Byte(t);
+                        process.stdout.cursorTo(0, 0);
+                        console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
+                            + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+                    });
+                    dl.on("finish", () => {
+                        console.log("Finished download.\n", "Start the using command `ionmc start` in the directory.\n");
+                        Configuration_1.Config.init(fullPath, serverVersion.id);
+                    });
+                });
+            }
+            else if (operator == "start") {
+                object || (object = "./");
+                let objectType;
+                if (object.startsWith("@")) {
+                    object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
+                }
+                if (fs.existsSync(object)) { }
+                else if (fs.existsSync(path_1.resolve(IonMC.globalServersPath, object))) {
+                    object = path_1.resolve(IonMC.globalServersPath, object);
+                }
+                else {
+                    return console.log("Given path does not exist.");
+                }
+                if (object.endsWith(".js"))
+                    objectType = "js";
+                else if (object.endsWith(".jar"))
+                    objectType = "jar";
+                else
+                    objectType = "dir";
+                let config = Configuration_1.Config.load(object);
+                if (objectType == "dir") {
+                    let jarPath = path_1.resolve(object, "server.jar");
+                    let jsPath = path_1.resolve(object, "server.js");
+                    if (fs.existsSync(jsPath)) {
+                        object = jsPath;
+                        objectType = "js";
+                    }
+                    else if (fs.existsSync(jarPath)) {
+                        object = jarPath;
+                        objectType = "jar";
+                    }
+                    else {
+                        return console.log(`This directory doesn't contain a server.js or server.jar`);
+                    }
+                }
+                if (objectType == "js") {
+                    process.chdir(path_1.dirname(object));
+                    Promise.resolve().then(() => __importStar(require(object)));
+                }
+                else if (objectType == "jar") {
+                    let server = new __1.Server(object);
+                    server.on("data", server.write);
+                    server.on("stopped", () => {
+                        console.log("Server has been stopped. Exiting...");
+                        process.exit();
+                    });
                 }
             }
-            if (objectType == "js") {
-                Promise.resolve().then(() => __importStar(require(object)));
+            else if (operator == "setglobal") {
+                object || (object = "./");
+                let objectType;
+                if (!fs.existsSync(object)) {
+                    return console.log("Given path does not exist.");
+                }
+                if (object.endsWith(".js"))
+                    objectType = "js";
+                else if (object.endsWith(".jar"))
+                    objectType = "jar";
+                else
+                    objectType = "dir";
+                if (objectType == "dir") {
+                    let jarPath = path_1.resolve(object, "server.jar");
+                    let jsPath = path_1.resolve(object, "server.js");
+                    if (fs.existsSync(jsPath)) {
+                        object = jsPath;
+                        objectType = "js";
+                    }
+                    else if (fs.existsSync(jarPath)) {
+                        object = jarPath;
+                        objectType = "jar";
+                    }
+                    else {
+                        return console.log(`This directory doesn't contain a server.js or server.jar`);
+                    }
+                }
+                let lnkName = path_1.basename(path_1.dirname(object));
+                if (version == "as") {
+                    if (extra1) {
+                        lnkName = extra1.replace(/\//g, "_");
+                    }
+                    else {
+                        return console.error("Error: Expected name after \"as\"");
+                    }
+                }
+                symlink_dir_1.default(path_1.dirname(object), path_1.resolve(IonMC.globalServersPath, lnkName));
             }
-            else if (objectType == "jar") {
-                let server = new __1.Server(object);
-                server.on("data", server.write);
+            else if (operator == "update") {
+                if (!object) {
+                    return help();
+                }
+                if (object.startsWith("@")) {
+                    if (!version)
+                        version = object.substring(1);
+                    object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
+                }
+                else {
+                    if (!version)
+                        version = object;
+                }
+                let fullPath = path_1.resolve(object);
+                if (!fs.existsSync(fullPath)) {
+                    return console.log(`Path "${fullPath}" doesn't exists`);
+                }
+                let serverVersion = yield __1.Api.getVersions()
+                    .then(res => {
+                    switch (version) {
+                        case "latest":
+                        case "l":
+                            return res.versions.find(v => v.id == res.latest.release);
+                        case "latest-snapshot":
+                        case "ls":
+                            return res.versions.find(v => v.id == res.latest.snapshot);
+                        default:
+                            return res.versions.find(v => v.id == version);
+                    }
+                });
+                if (!serverVersion) {
+                    return console.log(`Error: Unable to find version "${version}"`);
+                }
+                fs.mkdirSync(fullPath, { recursive: true });
+                console.clear();
+                __1.Api.downloadServer(__1.Api.getRelease(serverVersion), fullPath, "server").then(dl => {
+                    dl.on("data", (_, r, t) => {
+                        let received = new IonUtil_1.default.Byte(r);
+                        let total = new IonUtil_1.default.Byte(t);
+                        process.stdout.cursorTo(0, 0);
+                        console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
+                            + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+                    });
+                    dl.on("finish", () => {
+                        console.log("Finished updating to version " + serverVersion.id + ".\n");
+                    });
+                });
             }
-        }
-        else if (operator == "update") {
-            if (!object) {
-                return help();
+            else if (operator == "versions") {
+                __1.Api.getVersions().then(versions => {
+                    let versionsText = versions.versions.map(v => v.id + " - " + v.type
+                        + (versions.latest.release == v.id ? " (Latest Release)" : versions.latest.snapshot == v.id ? " (Latest Snapshot)" : "")).reverse().join("\n");
+                    console.log(versionsText);
+                });
             }
-            if (object.startsWith("@")) {
-                if (!version)
-                    version = object.substring(1);
-                object = path_1.resolve(IonMC.globalServersPath, object.substring(1));
+            else if (operator == "version") {
+                console.log(packageJson.displayName
+                    + "\nVersion " + packageJson.version);
+            }
+            else if (operator == "init") {
+                if (!version) {
+                    return help();
+                }
+                Configuration_1.Config.init(object, version);
+            }
+            else if (operator == "list") {
+                let globalFiles = fs.readdirSync(IonMC.globalServersPath);
+                console.log("Global servers:");
+                for (let i = 0; i < globalFiles.length; i++) {
+                    const file = globalFiles[i];
+                    if (fs.existsSync(path_1.resolve(IonMC.globalServersPath, file, "server.jar")) || fs.existsSync(path_1.resolve(IonMC.globalServersPath, file, "server.js"))) {
+                        console.log("  @" + file);
+                    }
+                }
+                let files = fs.readdirSync("./");
+                console.log("\nServers in this directory:");
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (fs.existsSync(path_1.resolve(file, "server.jar")) || fs.existsSync(path_1.resolve(file, "server.js"))) {
+                        console.log("  " + file);
+                    }
+                }
             }
             else {
-                if (!version)
-                    version = object;
-            }
-            let fullPath = path_1.resolve(object);
-            if (!fs.existsSync(fullPath)) {
-                return console.log(`Path "${fullPath}" doesn't exists`);
-            }
-            let serverVersion = yield __1.Api.getVersions()
-                .then(res => {
-                switch (version) {
-                    case "latest":
-                    case "l":
-                        return res.versions.find(v => v.id == res.latest.release);
-                    case "latest-snapshot":
-                    case "ls":
-                        return res.versions.find(v => v.id == res.latest.snapshot);
-                    default:
-                        return res.versions.find(v => v.id == version);
-                }
-            });
-            if (!serverVersion) {
-                return console.log(`Error: Unable to find version "${version}"`);
-            }
-            fs.mkdirSync(fullPath, { recursive: true });
-            console.clear();
-            __1.Api.downloadServer(__1.Api.getRelease(serverVersion), fullPath, "server").then(dl => {
-                dl.on("data", (_, r, t) => {
-                    let received = new IonUtil_1.default.Byte(r);
-                    let total = new IonUtil_1.default.Byte(t);
-                    process.stdout.cursorTo(0, 0);
-                    console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-                        + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
-                });
-                dl.on("finish", () => {
-                    console.log("Finished updating to version " + serverVersion.id + ".\n");
-                });
-            });
-        }
-        else if (operator == "versions") {
-            __1.Api.getVersions().then(versions => {
-                let versionsText = versions.versions.map(v => v.id + " - " + v.type
-                    + (versions.latest.release == v.id ? " (Latest Release)" : versions.latest.snapshot == v.id ? " (Latest Snapshot)" : "")).reverse().join("\n");
-                console.log(versionsText);
-            });
-        }
-        else if (operator == "version") {
-            console.log(packageJson.displayName
-                + "\nVersion " + packageJson.version);
-        }
-        else if (operator == "init") {
-            if (!version) {
                 return help();
-            }
-            Configuration_1.Config.init(object, version);
-        }
-        else if (operator == "list") {
-            let globalFiles = fs.readdirSync(IonMC.globalServersPath);
-            console.log("Global servers:");
-            for (let i = 0; i < globalFiles.length; i++) {
-                const file = globalFiles[i];
-                if (fs.existsSync(path_1.resolve(IonMC.globalServersPath, file, "server.jar")) || fs.existsSync(path_1.resolve(IonMC.globalServersPath, file, "server.js"))) {
-                    console.log("  @" + file);
-                }
-            }
-            let files = fs.readdirSync("./");
-            console.log("\nServers in this directory:");
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                if (fs.existsSync(path_1.resolve(file, "server.jar")) || fs.existsSync(path_1.resolve(file, "server.js"))) {
-                    console.log("  " + file);
-                }
             }
         }
         else {
             return help();
         }
-    }
-    else {
-        return help();
-    }
-}))();
+    });
+})();
 function help() {
     console.log(`
 ${packageJson.displayName} CLI.
@@ -254,7 +314,9 @@ ${packageJson.displayName} CLI.
     ionmc update [@]<server name> <version> - Update a server to a specific minecraft version
     ionmc update [@]<server name> latest | latest-snapshot - Update a server to a latest release or snapshot
 
-    ionmc list - Show the list of global servers.
+    ionmc list - Show the list of global and current directory servers.
+    ionmc setglobal - Add a server to the global server list.
+                      All global servers can be accessed via @ and the name of the server from any directory.
 
     ionmc start [[@][ <path to directory> | <path to jar> | <path to server.js> ]] - Start a server.
 

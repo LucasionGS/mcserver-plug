@@ -1,4 +1,4 @@
-import { Network } from "ionew";
+import { Download } from "./Download";
 declare namespace Api {
     interface VersionResponse {
         latest: {
@@ -67,7 +67,7 @@ declare namespace Api {
     }
     export function getVersions(): Promise<VersionResponse>;
     export function getRelease(version: Version | Promise<Version> | string): Promise<Release>;
-    export function downloadServer(release: Release | Promise<Release>, location: string, jarName?: string): Promise<Network.Download>;
+    export function downloadServer(release: Release | Promise<Release>, location: string, jarName?: string): Promise<Download>;
     export {};
 }
 export default Api;

@@ -3,12 +3,13 @@
 import { Api, Server } from "..";
 import util from "../lib/IonUtil";
 import * as fs from "fs";
-import { resolve } from "path";
+import { basename, dirname, resolve } from "path";
 import { Config } from "../lib/Configuration";
+import ln from "symlink-dir";
 
 namespace IonMC {
   export var globalServersPath: string;
-  export const ionmcDir = resolve(process.env.HOMEDRIVE ? process.env.HOMEDRIVE : "" + process.env.HOMEPATH, ".ionmc");
+  export const ionmcDir = resolve((process.env.HOMEDRIVE || "") + process.env.HOMEPATH, ".ionmc");
   if (fs.existsSync(ionmcDir)) {
     IonMC.globalServersPath = resolve(ionmcDir, "servers");
     !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
@@ -35,14 +36,39 @@ interface PackageJson {
 var [
   operator,
   object,
-  version
+  version,
+  extra1,
 ]: [
-  "download" | "start" | "update" | "versions" | "version" | "init" | "list",
-  string,
-  string
+  "download"
+  | "start" | "run"
+  | "update" | "up"
+  | "versions"
+  | "version"
+  | "init"
+  | "list" | "ls"
+  | "setglobal",
+  ...string[]
 ] = process.argv.slice(2) as any;
 
-(async () => {
+// Operator Aliases
+switch (operator) {
+  case "run":
+    operator = "start";
+    break;
+  
+  case "up":
+    operator = "update";
+    break;
+  
+  case "ls":
+    operator = "list";
+    break;
+
+  default:
+    break;
+}
+
+(async function command() {
   if (operator) {
     if (operator == "download") {
       if (!object) {
@@ -139,12 +165,59 @@ var [
       }
 
       if (objectType == "js") {
+        process.chdir(dirname(object));
         import(object);
       }
       else if (objectType == "jar") {
         let server = new Server(object);
         server.on("data", server.write);
+        server.on("stopped", () => {
+          console.log("Server has been stopped. Exiting...");
+          process.exit();
+        });
       }
+    }
+    else if (operator == "setglobal") {
+      object || (object = "./");
+      let objectType: "js" | "jar" | "dir";
+
+      if (!fs.existsSync(object)) {
+        return console.log("Given path does not exist.");
+      }
+
+      if (object.endsWith(".js")) objectType = "js";
+      else if (object.endsWith(".jar")) objectType = "jar";
+      else objectType = "dir";
+
+      if (objectType == "dir") {
+        let jarPath = resolve(object, "server.jar");
+        let jsPath = resolve(object, "server.js");
+        if (fs.existsSync(jsPath)) {
+          object = jsPath;
+          objectType = "js";
+        }
+        else if (fs.existsSync(jarPath)) {
+          object = jarPath;
+          objectType = "jar";
+        }
+        else {
+          return console.log(`This directory doesn't contain a server.js or server.jar`);
+        }
+      }
+
+      let lnkName = basename(dirname(object));
+      if (version == "as") {
+        if (extra1) {
+          lnkName = extra1.replace(/\//g, "_");
+        }
+        else {
+          return console.error("Error: Expected name after \"as\"");
+        }
+      }
+      
+      ln(
+        dirname(object), resolve(IonMC.globalServersPath, lnkName)
+      );
     }
     else if (operator == "update") {
       if (!object) {
@@ -261,7 +334,9 @@ ${packageJson.displayName} CLI.
     ionmc update [@]<server name> <version> - Update a server to a specific minecraft version
     ionmc update [@]<server name> latest | latest-snapshot - Update a server to a latest release or snapshot
 
-    ionmc list - Show the list of global servers.
+    ionmc list - Show the list of global and current directory servers.
+    ionmc setglobal - Add a server to the global server list.
+                      All global servers can be accessed via @ and the name of the server from any directory.
 
     ionmc start [[@][ <path to directory> | <path to jar> | <path to server.js> ]] - Start a server.
 

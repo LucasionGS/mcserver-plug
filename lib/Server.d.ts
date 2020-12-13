@@ -13,7 +13,7 @@ export declare class Server extends EventEmitter {
      */
     write(text: string): void;
     /**
-     * Write console info to the output.
+     * Write object info to the output.
      */
     write(object: object): void;
     ready: boolean;
@@ -40,6 +40,13 @@ export declare class Server extends EventEmitter {
     };
 }
 export interface Server extends EventEmitter {
+    /**
+     * Runs when the server instance has stopped.
+     */
+    on(event: "stopped", listener: () => void): this;
+    /**
+     * Runs when the server is ready and joinable.
+     */
     on(event: "ready", listener: (time: number) => void): this;
     /**
      * Runs when a user connects to the server.
@@ -49,8 +56,15 @@ export interface Server extends EventEmitter {
      * Runs when a user disconnects from the server.
      */
     on(event: "disconnect", listener: (user: User, reason?: string) => void): this;
+    /**
+     * Runs when any users sends a message.
+     */
     on(event: "message", listener: (message: string, user: User) => void): this;
+    /**
+     * Runs when any data has been output to the server instance.
+     */
     on(event: "data", listener: (info: ConsoleInfo) => void): this;
+    emit(event: "stopped"): boolean;
     emit(event: "ready", time: number): boolean;
     emit(event: "connect", user: User): boolean;
     emit(event: "disconnect", user: User, reason?: string): boolean;

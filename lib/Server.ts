@@ -24,7 +24,7 @@ export class Server extends EventEmitter {
    */
   write(text: string): void;
   /**
-   * Write console info to the output.
+   * Write object info to the output.
    */
   write(object: object): void;
   write(text: string | ConsoleInfo | object) {
@@ -139,7 +139,7 @@ export class Server extends EventEmitter {
       let info = new ConsoleInfo(chk);
       this.emit("data", info);
 
-      { // Emits for special datas
+      { // Emits for special data
         let m: RegExpMatchArray;
         if (!this.ready) {
           if (info.sender == "main" && info.messageType == "INFO"
@@ -155,6 +155,7 @@ export class Server extends EventEmitter {
             this.emit("ready", +m[1]);
           }
         }
+        // User login
         else if (info.sender.startsWith("User Authenticator")) {
           if ((m = info.message.match(/^UUID of player (.+?) is (.+)/))) {
             let user = new User(m[1], m[2]);
@@ -162,15 +163,22 @@ export class Server extends EventEmitter {
             this.emit("connect", user);
           }
         }
+        // User disconnect
         else if ((m = info.message.match(/^(\S+) lost connection:\s*(.*)/))) {
           let userId = this.userList.findIndex(u => u.username == m[1]);
           let user = this.userList.splice(userId, 1)[0];
           this.emit("disconnect", user, m[2]);
         }
+        // User message
+        else if ((m = info.message.match(/^<(.*?)>\s*(.+)/))) {
+          let user = this.userList.find(u => u.username == m[1]);
+          this.emit("message", m[2], user);
+        }
       }
     });
 
     proc.stdout.on("error", console.error);
+    proc.stdout.on("end", () => this.emit("stopped"));
 
     return proc;
   }
@@ -215,6 +223,13 @@ export class Server extends EventEmitter {
 
 export interface Server extends EventEmitter {
   // On
+  /**
+   * Runs when the server instance has stopped.
+   */
+  on(event: "stopped", listener: () => void): this;
+  /**
+   * Runs when the server is ready and joinable.
+   */
   on(event: "ready", listener: (time: number) => void): this;
   /**
    * Runs when a user connects to the server.
@@ -224,10 +239,17 @@ export interface Server extends EventEmitter {
    * Runs when a user disconnects from the server.
    */
   on(event: "disconnect", listener: (user: User, reason?: string) => void): this;
+  /**
+   * Runs when any users sends a message. 
+   */
   on(event: "message", listener: (message: string, user: User) => void): this;
+  /**
+   * Runs when any data has been output to the server instance.
+   */
   on(event: "data", listener: (info: ConsoleInfo) => void): this;
 
   // Emit
+  emit(event: "stopped"): boolean;
   emit(event: "ready", time: number): boolean;
   emit(event: "connect", user: User): boolean;
   emit(event: "disconnect", user: User, reason?: string): boolean;

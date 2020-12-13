@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@types/node": "^14.14.11",
-    "ionew": "file:A:/Users/lucas/.Development Repositories/ionew",
-    "request": "^2.88.2"
+    "@types/node-fetch": "^2.5.7",
+    "node-fetch": "^2.6.1",
+    "request": "^2.88.2",
+    "symlink-dir": "^4.1.0"
   },
   "scripts": {
     "test": "node ./tests/wrap.js"

@@ -1,7 +1,7 @@
 import request from "request";
 import util from "./IonUtil";
 import * as fs from "fs";
-import { Network } from "ionew";
+import { Download } from "./Download";
 import { Server } from "..";
 
 namespace Api {
@@ -109,7 +109,7 @@ namespace Api {
     if (jarName.endsWith(".jar")) jarName = jarName.substring(0, jarName.length - 4);
     
     fs.mkdirSync(location, { recursive: true });
-    let dl = new Network.Download(release.downloads.server.url, location + `/${jarName}.jar`);
+    let dl = new Download(release.downloads.server.url, location + `/${jarName}.jar`);
     return dl;
   }
 }

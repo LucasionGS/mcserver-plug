@@ -4,7 +4,16 @@ import { EventEmitter } from "events";
 import { User } from "./User";
 import * as readline from "readline";
 export declare class Server extends EventEmitter {
-    constructor(serverJarPath: string);
+    /**
+     * Initialize a minecraft server.
+     * @param serverJarPath Path to the server.jar file.
+     * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
+     ```js
+     let server = new Server("/path/to/server.jar", true);
+     server.start();
+     ```
+     */
+    constructor(serverJarPath: string, skipStartup?: boolean);
     terminal: readline.Interface;
     /**
      * Write console info to the output.
@@ -34,6 +43,8 @@ export declare class Server extends EventEmitter {
     get serverJarPath(): string;
     set serverJarPath(v: string);
     userList: User[];
+    getOperators(): Promise<Operator[]>;
+    isUserOperator(user: User): Promise<boolean>;
     private start;
     stop(force?: boolean): void;
     process: cp.ChildProcess;
@@ -49,6 +60,14 @@ export declare class Server extends EventEmitter {
     clear(): void;
 }
 export interface Server extends EventEmitter {
+    /**
+     * Runs when the server console has been cleared.
+     */
+    on(event: "clear", listener: () => void): this;
+    /**
+     * Runs when any data has been written to the server console.
+     */
+    on(event: "write", listener: (data: string | ConsoleInfo | object) => void): this;
     /**
      * Runs when the server instance has stopped.
      */
@@ -73,6 +92,8 @@ export interface Server extends EventEmitter {
      * Runs when any data has been output to the server instance.
      */
     on(event: "data", listener: (info: ConsoleInfo) => void): this;
+    emit(event: "clear"): boolean;
+    emit(event: "write", data: string | ConsoleInfo | object): boolean;
     emit(event: "stopped"): boolean;
     emit(event: "ready", time: number): boolean;
     emit(event: "connect", user: User): boolean;
@@ -80,7 +101,13 @@ export interface Server extends EventEmitter {
     emit(event: "message", message: string, user: User): boolean;
     emit(event: "data", info: ConsoleInfo): boolean;
 }
-interface ServerProperties {
+interface Operator {
+    "uuid": string;
+    "name": string;
+    "level": number;
+    "bypassesPlayerLimit": boolean;
+}
+export interface ServerProperties {
     "spawn-protection": number;
     "max-tick-time": number;
     "query.port": number;
@@ -132,7 +159,7 @@ interface ServerProperties {
     "rate-limit": number;
     "enable-rcon": boolean;
 }
-declare type CommandMap = {
+export declare type CommandMap = {
     list: CommandResponse.List;
     trigger: CommandResponse.Trigger;
     scoreboard: CommandResponse.Scoreboard;
@@ -147,8 +174,8 @@ declare namespace CommandResponse {
     interface Scoreboard {
     }
 }
-declare type ConsoleInfoMessageType = "INFO" | "WARN" | "NODEJS";
-declare class ConsoleInfo<CommandData extends keyof CommandMap = null> {
+export declare type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
+export declare class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     constructor(data: string);
     static create(message: string): ConsoleInfo;
     static create(options: {
@@ -160,6 +187,10 @@ declare class ConsoleInfo<CommandData extends keyof CommandMap = null> {
      * Convert object into a string.
      */
     toString(): string;
+    /**
+     * Convert object into an HTMLDivElement containing the data.
+     */
+    toHTML(): HTMLDivElement;
     timeStamp: string;
     sender: string;
     messageType: ConsoleInfoMessageType;

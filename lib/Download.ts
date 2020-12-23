@@ -3,7 +3,6 @@ import * as http from "http";
 import * as https from "https";
 import * as path from "path";
 import { EventEmitter } from "events";
-import fetch from "node-fetch";
 
 export interface Download {
   on(event: "start", listener: (res: http.IncomingMessage) => void): this;

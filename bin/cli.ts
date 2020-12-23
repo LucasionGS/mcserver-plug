@@ -18,16 +18,15 @@ namespace IonMC {
     throw new Error("Unsupported system for CLI. Supported systems are Windows and Linux for the CLI.");
   }
   export var globalServersPath: string;
-  export const ionmcDir = resolve(
-    path,
-    ".ionmc");
-  if (fs.existsSync(ionmcDir)) {
-    IonMC.globalServersPath = resolve(ionmcDir, "servers");
-    !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
-  }
-  else {
+  export const ionmcDir = resolve(path, ".ionmc");
+  IonMC.globalServersPath = resolve(ionmcDir, "servers");
+  if (!fs.existsSync(ionmcDir)) {
     fs.mkdirSync(ionmcDir);
   }
+  if (!fs.existsSync(IonMC.globalServersPath)) {
+    fs.mkdirSync(IonMC.globalServersPath);
+  }
+  
 }
 
 try {

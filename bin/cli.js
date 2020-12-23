@@ -44,14 +44,17 @@ var IonMC;
     let pf = os_1.platform();
     let path = pf == "win32" ? process.env.HOMEDRIVE + process.env.HOMEPATH :
         pf == "linux" ? process.env.HOME :
-            "";
-    IonMC.ionmcDir = path_1.resolve(path, ".ionmc");
-    if (fs.existsSync(IonMC.ionmcDir)) {
-        IonMC.globalServersPath = path_1.resolve(IonMC.ionmcDir, "servers");
-        !fs.existsSync(IonMC.globalServersPath) && fs.mkdirSync(IonMC.globalServersPath);
+            false;
+    if (path === false) {
+        throw new Error("Unsupported system for CLI. Supported systems are Windows and Linux for the CLI.");
     }
-    else {
+    IonMC.ionmcDir = path_1.resolve(path, ".ionmc");
+    IonMC.globalServersPath = path_1.resolve(IonMC.ionmcDir, "servers");
+    if (!fs.existsSync(IonMC.ionmcDir)) {
         fs.mkdirSync(IonMC.ionmcDir);
+    }
+    if (!fs.existsSync(IonMC.globalServersPath)) {
+        fs.mkdirSync(IonMC.globalServersPath);
     }
 })(IonMC || (IonMC = {}));
 try {

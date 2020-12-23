@@ -8,27 +8,20 @@ import { stdout } from "process";
 import * as readline from "readline";
 
 export class Server extends EventEmitter {
-  constructor(serverJarPath: string) {
+  /**
+   * Initialize a minecraft server.
+   * @param serverJarPath Path to the server.jar file.
+   * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
+   ```js
+   let server = new Server("/path/to/server.jar", true);
+   server.start();
+   ```
+   */
+  constructor(serverJarPath: string, skipStartup: boolean = false) {
     super();
     this.serverJarPath = Path.resolve(serverJarPath);
 
-    this.process = this.start();
-    process.openStdin();
-
-    this.terminal = readline.createInterface(process.stdin);
-    this.terminal.on("line", line => {
-      if (!line.startsWith("@")) {
-        // Minecraft command
-        this.executeCustomCommand(line);
-      }
-      else {
-        // IonMC command.
-        let cmd = line.substring(1);
-        this.executeIonCommand(cmd).then(res => {
-          if (res.data) this.write(res.data);
-        });
-      }
-    })
+    if (skipStartup !== true) this.start();
   }
 
   terminal: readline.Interface;
@@ -45,10 +38,11 @@ export class Server extends EventEmitter {
    * Write object info to the output.
    */
   write(object: object): void;
-  write(text: string | ConsoleInfo | object) {
-    if (text instanceof ConsoleInfo) text = text.toString();
-    else if (typeof text == "object") text = JSON.stringify(text, null, 2);
-    stdout.write(text + "\n");
+  write(data: string | ConsoleInfo | object) {
+    this.emit("write", data);
+    if (data instanceof ConsoleInfo) data = data.toString();
+    else if (typeof data == "object") data = JSON.stringify(data, null, 2);
+    stdout.write(data + "\n");
   }
 
   ready: boolean = false;
@@ -156,6 +150,17 @@ export class Server extends EventEmitter {
 
   public userList: User[] = [];
 
+  public async getOperators() {
+    let data = await fs.promises.readFile(Path.resolve(this.directoryPath, "ops.json"), "utf8");
+    let ops: Operator[] = JSON.parse(data);
+    return ops;
+  }
+
+  public async isUserOperator(user: User) {
+    let ops = await this.getOperators();
+    return ops.findIndex(o => o.uuid == user.uuid) != -1;
+  }
+
   private start() {
     this.write("Starting server...");
     
@@ -214,12 +219,36 @@ export class Server extends EventEmitter {
     proc.stdout.on("error", console.error);
     proc.stdout.on("end", () => this.emit("stopped"));
 
+    // Open access to terminal.
+    if (this.process != null) this.process.kill("SIGKILL");
+    this.process = proc;
+    process.openStdin();
+
+    this.terminal = readline.createInterface(process.stdin);
+    this.terminal.on("line", line => {
+      if (!line.startsWith("@")) {
+        // Minecraft command
+        this.executeCustomCommand(line);
+      }
+      else {
+        // IonMC command.
+        let cmd = line.startsWith("@") ? line.substring(1) : line;
+        let res = this.executeIonCommand(cmd)
+        if (res instanceof Promise) res.then(res => {
+          if (res.data) this.write(res.data);
+        })
+        if (res instanceof ConsoleInfo) {
+          if (res.data) this.write(res.data);
+        }
+      }
+    });
+
     return proc;
   }
 
   public stop(force: boolean = false) {
-    this.executeCustomCommand("stop");
     if (force) this.process.kill();
+    else this.executeCustomCommand("stop");
   }
 
   process: cp.ChildProcess = null;
@@ -265,11 +294,20 @@ export class Server extends EventEmitter {
 
   clear() {
     console.clear();
+    this.emit("clear");
   }
 }
 
 export interface Server extends EventEmitter {
   // On
+  /**
+   * Runs when the server console has been cleared.
+   */
+  on(event: "clear", listener: () => void): this;
+  /**
+   * Runs when any data has been written to the server console.
+   */
+  on(event: "write", listener: (data: string | ConsoleInfo | object) => void): this;
   /**
    * Runs when the server instance has stopped.
    */
@@ -296,6 +334,8 @@ export interface Server extends EventEmitter {
   on(event: "data", listener: (info: ConsoleInfo) => void): this;
 
   // Emit
+  emit(event: "clear"): boolean;
+  emit(event: "write", data: string | ConsoleInfo | object): boolean;
   emit(event: "stopped"): boolean;
   emit(event: "ready", time: number): boolean;
   emit(event: "connect", user: User): boolean;
@@ -304,7 +344,14 @@ export interface Server extends EventEmitter {
   emit(event: "data", info: ConsoleInfo): boolean;
 }
 
-interface ServerProperties {
+interface Operator {
+  "uuid": string,
+  "name": string,
+  "level": number,
+  "bypassesPlayerLimit": boolean
+}
+
+export interface ServerProperties {
   "spawn-protection": number;
   "max-tick-time": number;
   "query.port": number;
@@ -357,7 +404,7 @@ interface ServerProperties {
   "enable-rcon": boolean;
 }
 
-type CommandMap = {
+export type CommandMap = {
   list: CommandResponse.List;
   trigger: CommandResponse.Trigger;
   scoreboard: CommandResponse.Scoreboard
@@ -376,15 +423,29 @@ namespace CommandResponse {
   }
 }
 
-type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
+export type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
 
-class ConsoleInfo<CommandData extends keyof CommandMap = null> {
+export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   constructor(data: string) {
-    let m = (data + "").match(/\[(\d+:\d+:\d+)\] \[(.*?)\/(.*?)\]: (.*)/);
-    this.timeStamp = m[1];
-    this.sender = m[2];
-    this.messageType = m[3] as ConsoleInfoMessageType;
-    this.message = m[4];
+    data += "";
+    let m = (data).match(/\[(\d+:\d+:\d+)\] \[(.*?)\/(.*?)\]: (.*)/);
+    if (m) {
+      this.timeStamp = m[1];
+      this.sender = m[2];
+      this.messageType = m[3] as ConsoleInfoMessageType;
+      this.message = m[4];
+    }
+    else {
+      let tmp = ConsoleInfo.create({
+        sender: "IonMC",
+        messageType: "FATAL",
+        message: "Unable to parse: \"" + data + "\""
+      })
+      this.timeStamp = tmp.timeStamp;
+      this.sender =tmp.sender;
+      this.messageType = tmp.messageType;
+      this.message = tmp.message;
+    }
   }
 
   static create(message: string): ConsoleInfo;
@@ -414,7 +475,43 @@ class ConsoleInfo<CommandData extends keyof CommandMap = null> {
    * Convert object into a string.
    */
   toString() {
-    return `[${this.timeStamp}] [${this.sender}/${this.messageType}]: ${this.message}`
+    return `[${this.timeStamp}] [${this.sender}/${this.messageType}]: ${this.message}`;
+  }
+  
+  /**
+   * Convert object into an HTMLDivElement containing the data.
+   */
+  toHTML() {
+    function escapeHtml(html: string) {
+      return html
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+   }
+
+    if (!document) {
+      throw new Error("No document found.");
+    };
+    
+    let div = document.createElement("div");
+    let color = "";
+    switch (this.messageType) {
+      case "WARN":
+        color = "yellow";
+        break;
+      
+      case "FATAL":
+        color = "red";
+        break;
+      
+      case "NODEJS":
+        color = "lightblue";
+        break;
+    }
+    div.innerHTML = `[${escapeHtml(this.timeStamp)}] [${escapeHtml(this.sender).bold()}/${escapeHtml(this.messageType).fontcolor(color)}]: ${escapeHtml(this.message).fontcolor(color)}`;
+    return div;
   }
 
   timeStamp: string;

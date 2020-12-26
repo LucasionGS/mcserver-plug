@@ -6,14 +6,16 @@ import * as readline from "readline";
 export declare class Server extends EventEmitter {
     /**
      * Initialize a minecraft server.
-     * @param serverJarPath Path to the server.jar file.
+     * @param serverJarPath Path to the server.jar file. (Relative to the server root folder. In most cases can be left empty.)
      * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
      ```js
      let server = new Server("/path/to/server.jar", true);
      server.start();
      ```
      */
-    constructor(serverJarPath: string, skipStartup?: boolean);
+    constructor();
+    constructor(serverJarPath: string);
+    constructor(serverJarPath: string, skipStartup: boolean);
     terminal: readline.Interface;
     /**
      * Write console info to the output.

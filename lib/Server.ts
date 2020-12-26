@@ -10,14 +10,17 @@ import * as readline from "readline";
 export class Server extends EventEmitter {
   /**
    * Initialize a minecraft server.
-   * @param serverJarPath Path to the server.jar file.
+   * @param serverJarPath Path to the server.jar file. (Relative to the server root folder. In most cases can be left empty.)
    * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
    ```js
    let server = new Server("/path/to/server.jar", true);
    server.start();
    ```
    */
-  constructor(serverJarPath: string, skipStartup: boolean = false) {
+  constructor();
+  constructor(serverJarPath: string);
+  constructor(serverJarPath: string, skipStartup: boolean);
+  constructor(serverJarPath: string = "server.jar", skipStartup: boolean = false) {
     super();
     this.serverJarPath = Path.resolve(serverJarPath);
 
@@ -181,15 +184,16 @@ export class Server extends EventEmitter {
       { // Emits for special data
         let m: RegExpMatchArray;
         if (!this.ready) {
-          if (info.sender == "main" && info.messageType == "INFO"
-          && (m = info.message.match(/^You need to agree to the EULA in order to run the server\. Go to eula\.txt for more info\.$/))) {
-            let eula = fs.readFileSync(this.directoryPath + "/eula.txt", "utf8");
-            fs.writeFileSync(this.directoryPath + "/eula.txt", eula.replace("false", "true"));
-            this.stop(true);
-            this.process = this.start();
-            return;
-          }
-          else if ((m = info.message.match(/^Done \((.*?)s\)! For help, type "help"/))) {
+          // if (info.sender == "main" && info.messageType == "INFO"
+          // && (m = info.message.match(/^You need to agree to the EULA in order to run the server\. Go to eula\.txt for more info\.$/))) {
+          //   let eula = fs.readFileSync(this.directoryPath + "/eula.txt", "utf8");
+          //   fs.writeFileSync(this.directoryPath + "/eula.txt", eula.replace("false", "true"));
+          //   this.stop(true);
+          //   this.process = this.start();
+          //   return;
+          // }
+          // else
+          if ((m = info.message.match(/^Done \((.*?)s\)! For help, type "help"/))) {
             this.ready = true;
             this.emit("ready", +m[1]);
           }

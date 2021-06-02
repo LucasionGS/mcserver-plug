@@ -8,7 +8,7 @@ export interface Download {
   on(event: "start", listener: (res: http.IncomingMessage) => void): this;
   on(event: "data", listener: (buffer: Buffer, receivedBytes: number, totalBytes: number) => void): this;
   on(event: "finish", listener: () => void): this;
-  
+
   emit(event: "start", res: http.IncomingMessage): boolean;
   emit(event: "data", buffer: Buffer, receivedBytes: number, totalBytes: number): boolean;
   emit(event: "finish"): boolean;
@@ -20,9 +20,11 @@ export class Download extends EventEmitter {
   constructor(url: string, autoStart: boolean);
   constructor(url: string, dest: string, autoStart?: boolean);
   constructor(public url: string, dest?: string | boolean, autoStart?: boolean) {
-    super({
-      "captureRejections": true
-    });
+    super(
+      // {
+      //   "captureRejections": true
+      // }
+    );
 
     if (typeof dest === "boolean") {
       autoStart = dest;
@@ -31,12 +33,12 @@ export class Download extends EventEmitter {
     if (autoStart === undefined) autoStart = true;
 
     if (/^http:\/\//.test(url)) {
-      this.get = function(a: any, b: any) {
+      this.get = function (a: any, b: any) {
         return http.get(a, b);
       };
     }
     else if (/^https:\/\//.test(url)) {
-      this.get = function(a: any, b: any) {
+      this.get = function (a: any, b: any) {
         return https.get(a, b);
       };
     }
@@ -58,7 +60,7 @@ export class Download extends EventEmitter {
     this.get(this.url, res => {
       this.incomingMessage = res;
       this.totalBytes = +res.headers["content-length"];
-      
+
       resolve(res); this.emit("start", res);
       if (typeof this.dest == "string") {
         let dir = path.dirname(this.dest);

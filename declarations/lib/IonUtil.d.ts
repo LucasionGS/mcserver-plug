@@ -4,7 +4,13 @@ declare namespace IonUtil {
         resolve: (value?: T | PromiseLike<T>) => void;
         reject: (reason?: any) => void;
     };
-    type ByteTypes = "Bytes" | "KB" | "MB" | "GB";
+    interface ByteMap {
+        "Bytes": Byte;
+        "KB": KiloByte;
+        "MB": MegaByte;
+        "GB": GigaByte;
+    }
+    type ByteTypes = keyof ByteMap;
     class ByteNumberBase<ByteType extends ByteTypes = "Bytes"> {
         constructor(initial?: number, byteType?: ByteType);
         static get byte(): number;

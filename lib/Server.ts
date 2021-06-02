@@ -6,6 +6,7 @@ import util from "./IonUtil";
 import { User } from "./User";
 import { stdout } from "process";
 import * as readline from "readline";
+import { TellRawTextObject } from "./CommandTypes";
 
 export class Server extends EventEmitter {
   /**
@@ -269,20 +270,16 @@ export class Server extends EventEmitter {
     },
     trigger: async (text: string) => {
       let info = await this.executeCustomCommand<"trigger">(text);
-      // let m = cmd.message.match(/^There are (\d+) of a max of (\d+) players online:/);
-      // cmd.data = {
-      //   players: +m[1],
-      //   maxPlayers: +m[2]
-      // }
       return info;
     },
     scoreboard: async (text: string) => {
       let info = await this.executeCustomCommand<"scoreboard">("scoreboard " + text);
-      // let m = cmd.message.match(/^There are (\d+) of a max of (\d+) players online:/);
-      // cmd.data = {
-      //   players: +m[1],
-      //   maxPlayers: +m[2]
-      // }
+      
+      return info;
+    },
+    tellRaw: async (user: User, text: TellRawTextObject) => {
+      let info = await this.executeCustomCommand<"tellRaw">(`tellraw ${user.username} ${typeof text === "object" ? JSON.stringify(text) : `"${text}"`}`);
+      
       return info;
     },
   }
@@ -411,7 +408,8 @@ export interface ServerProperties {
 export type CommandMap = {
   list: CommandResponse.List;
   trigger: CommandResponse.Trigger;
-  scoreboard: CommandResponse.Scoreboard
+  scoreboard: CommandResponse.Scoreboard;
+  tellRaw: CommandResponse.TellRaw;
 }
 
 namespace CommandResponse {
@@ -423,6 +421,9 @@ namespace CommandResponse {
     
   }
   export interface Scoreboard {
+    
+  }
+  export interface TellRaw {
     
   }
 }

@@ -3,6 +3,7 @@ import * as cp from "child_process";
 import { EventEmitter } from "events";
 import { User } from "./User";
 import * as readline from "readline";
+import { TellRawTextObject } from "./CommandTypes";
 export declare class Server extends EventEmitter {
     /**
      * Initialize a minecraft server.
@@ -54,6 +55,7 @@ export declare class Server extends EventEmitter {
         list: () => Promise<ConsoleInfo<null>>;
         trigger: (text: string) => Promise<ConsoleInfo<"trigger">>;
         scoreboard: (text: string) => Promise<ConsoleInfo<"scoreboard">>;
+        tellRaw: (user: User, text: TellRawTextObject) => Promise<ConsoleInfo<"tellRaw">>;
     };
     ionCommands: {
         clear: () => ConsoleInfo<null>;
@@ -165,6 +167,7 @@ export declare type CommandMap = {
     list: CommandResponse.List;
     trigger: CommandResponse.Trigger;
     scoreboard: CommandResponse.Scoreboard;
+    tellRaw: CommandResponse.TellRaw;
 };
 declare namespace CommandResponse {
     interface List {
@@ -174,6 +177,8 @@ declare namespace CommandResponse {
     interface Trigger {
     }
     interface Scoreboard {
+    }
+    interface TellRaw {
     }
 }
 export declare type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";

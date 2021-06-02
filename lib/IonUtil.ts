@@ -13,14 +13,14 @@ namespace IonUtil {
     return data;
   }
   
-  type ByteTypes = "Bytes" | "KB" | "MB" | "GB";
-
   interface ByteMap {
     "Bytes": Byte
     "KB": KiloByte
     "MB": MegaByte
     "GB": GigaByte
   }
+  
+  type ByteTypes = keyof ByteMap;
   
   class ByteNumberBase<ByteType extends ByteTypes = "Bytes"> {
     constructor(initial = 0, byteType?: ByteType) {

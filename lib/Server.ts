@@ -6,7 +6,7 @@ import util from "./IonUtil";
 import { User } from "./User";
 import { stdout } from "process";
 import * as readline from "readline";
-import { TellRawTextObject } from "./CommandTypes";
+import { TellRawTextObjectWithEvents } from "./CommandTypes";
 
 export class Server extends EventEmitter {
   /**
@@ -277,7 +277,7 @@ export class Server extends EventEmitter {
       
       return info;
     },
-    tellRaw: async (user: User, text: TellRawTextObject) => {
+    tellRaw: async (user: User, text: TellRawTextObjectWithEvents) => {
       let info = await this.executeCustomCommand<"tellRaw">(`tellraw ${user.username} ${typeof text === "object" ? JSON.stringify(text) : `"${text}"`}`);
       
       return info;
@@ -406,26 +406,19 @@ export interface ServerProperties {
 }
 
 export type CommandMap = {
-  list: CommandResponse.List;
-  trigger: CommandResponse.Trigger;
-  scoreboard: CommandResponse.Scoreboard;
-  tellRaw: CommandResponse.TellRaw;
-}
-
-namespace CommandResponse {
-  export interface List {
+  list: {
     players: number;
     maxPlayers: number;
-  }
-  export interface Trigger {
-    
-  }
-  export interface Scoreboard {
-    
-  }
-  export interface TellRaw {
-    
-  }
+  };
+  trigger: {
+
+  };
+  scoreboard: {
+
+  };
+  tellRaw: {
+
+  };
 }
 
 export type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";

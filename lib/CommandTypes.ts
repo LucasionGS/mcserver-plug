@@ -6,7 +6,13 @@ export interface TellRawObjectClickEventActionsValues {
   suggest_command: string;
   copy_to_clipboard: string;
 }
-export interface TellRawObject<TClickEventAction extends TellRawObjectClickEventActions = TellRawObjectClickEventActions> {
+export type TellRawObjectHoverEventActions = keyof TellRawObjectHoverEventActionsValues;
+export interface TellRawObjectHoverEventActionsValues {
+  show_item: unknown;
+  show_entity: unknown;
+  show_text: TellRawObject;
+}
+export interface TellRawObject {
   text?: TellRawPrimatives,
   color?: string,
   bold?: boolean,
@@ -14,9 +20,16 @@ export interface TellRawObject<TClickEventAction extends TellRawObjectClickEvent
   underlined?: boolean,
   strikethrough?: boolean,
   obfuscated?: boolean,
+}
+export interface TellRawObjectWithEvents<TClickEventAction extends TellRawObjectClickEventActions = TellRawObjectClickEventActions> extends TellRawObject {
   clickEvent?: {
     action?: TClickEventAction,
     value?: TellRawObjectClickEventActionsValues[TellRawObjectClickEventActions]
+  },
+  hoverEvent?: {
+    action?: TellRawObjectHoverEventActions,
+    contents?: TellRawTextObject
   }
 }
 export type TellRawTextObject = (TellRawObject | TellRawPrimatives)[] | TellRawObject | TellRawPrimatives;
+export type TellRawTextObjectWithEvents = (TellRawObjectWithEvents | TellRawPrimatives)[] | TellRawObjectWithEvents | TellRawPrimatives;

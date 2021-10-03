@@ -11,13 +11,13 @@ import { platform } from "os";
 namespace IonMC {
   let pf = platform();
   let path =
-  pf == "win32" ? process.env.HOMEDRIVE + process.env.HOMEPATH :
-  pf == "linux" ? process.env.HOME :
-  false;
+    pf == "win32" ? process.env.HOMEDRIVE + process.env.HOMEPATH :
+      pf == "linux" ? process.env.HOME :
+        false;
   if (path === false) {
     throw new Error("Unsupported system for CLI. Supported systems are Windows and Linux for the CLI.");
   }
-  export var globalServersPath: string;
+  export let globalServersPath: string;
   export const ionmcDir = resolve(path, ".ionmc");
   IonMC.globalServersPath = resolve(ionmcDir, "servers");
   if (!fs.existsSync(ionmcDir)) {
@@ -26,15 +26,16 @@ namespace IonMC {
   if (!fs.existsSync(IonMC.globalServersPath)) {
     fs.mkdirSync(IonMC.globalServersPath);
   }
-  
+
 }
 
+let packageJson: PackageJson;
 try {
-  var packageJson: PackageJson = JSON.parse(fs.readFileSync(resolve(__dirname, "../package.json"), "utf8"));
+  packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, "../package.json"), "utf8"));
 } catch (error) {
-  var packageJson: PackageJson = {
+  packageJson = {
     displayName: "IonMC",
-    version: "Undeterminable"
+    version: process.version ?? "Undeterminable"
   };
 }
 
@@ -43,33 +44,33 @@ interface PackageJson {
   version: string;
 }
 
-var [
+let [
   operator,
   object,
   version,
-  extra1,
+  ...rest
 ]: [
-  "download"
-  | "start" | "run"
-  | "update" | "up"
-  | "versions"
-  | "version"
-  | "init"
-  | "list" | "ls"
-  | "setglobal",
-  ...string[]
-] = process.argv.slice(2) as any;
+    "download"
+    | "start" | "run"
+    | "update" | "up"
+    | "versions"
+    | "version"
+    | "init"
+    | "list" | "ls"
+    | "setglobal",
+    ...string[]
+  ] = process.argv.slice(2) as any;
 
 // Operator Aliases
 switch (operator) {
   case "run":
     operator = "start";
     break;
-  
+
   case "up":
     operator = "update";
     break;
-  
+
   case "ls":
     operator = "list";
     break;
@@ -97,46 +98,46 @@ switch (operator) {
         return console.log(`Path "${fullPath}" already exists`);
       }
       let serverVersion = await Api.getVersions()
-      .then(res => {
-        switch (version) {
-          case "latest":
-          case "l":
-            return res.versions.find(v => v.id == res.latest.release);
-          
-          case "latest-snapshot":
-          case "ls":
-            return res.versions.find(v => v.id == res.latest.snapshot);
-         
-          default:
-            return res.versions.find(v => v.id == version);
-        }
-      });
+        .then(res => {
+          switch (version) {
+            case "latest":
+            case "l":
+              return res.versions.find(v => v.id == res.latest.release);
+
+            case "latest-snapshot":
+            case "ls":
+              return res.versions.find(v => v.id == res.latest.snapshot);
+
+            default:
+              return res.versions.find(v => v.id == version);
+          }
+        });
       if (!serverVersion) {
         return console.log(`Error: Unable to find version "${version}"`);
       }
 
-      fs.mkdirSync(fullPath, {recursive: true});
+      fs.mkdirSync(fullPath, { recursive: true });
       console.clear();
       Api.downloadServer(
         Api.getRelease(
           serverVersion
         ), fullPath, "server").then(dl => {
-        dl.on("data", (_, r, t) => {
-          let received = new util.Byte(r);
-          let total = new util.Byte(t);
-          process.stdout.cursorTo(0, 0);
-          console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-          + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+          dl.on("data", (_, r, t) => {
+            let received = new util.Byte(r);
+            let total = new util.Byte(t);
+            process.stdout.cursorTo(0, 0);
+            console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
+              + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+          });
+
+          dl.on("finish", () => {
+            console.log(
+              "Finished download.\n",
+              "Start the using command `ionmc start` in the directory.\n"
+            );
+            Config.init(fullPath, serverVersion.id);
+          });
         });
-      
-        dl.on("finish", () => {
-          console.log(
-            "Finished download.\n",
-            "Start the using command `ionmc start` in the directory.\n"
-          );
-          Config.init(fullPath, serverVersion.id);
-        });
-      });
     }
     else if (operator == "start") {
       object || (object = "./");
@@ -217,14 +218,14 @@ switch (operator) {
 
       let lnkName = basename(dirname(object));
       if (version == "as") {
-        if (extra1) {
-          lnkName = extra1.replace(/\//g, "_");
+        if (rest[0]) {
+          lnkName = rest[0].replace(/\//g, "_");
         }
         else {
           return console.error("Error: Expected name after \"as\"");
         }
       }
-      
+
       ln(
         dirname(object), resolve(IonMC.globalServersPath, lnkName)
       );
@@ -246,48 +247,48 @@ switch (operator) {
         return console.log(`Path "${fullPath}" doesn't exists`);
       }
       let serverVersion = await Api.getVersions()
-      .then(res => {
-        switch (version) {
-          case "latest":
-          case "l":
-            return res.versions.find(v => v.id == res.latest.release);
-          
-          case "latest-snapshot":
-          case "ls":
-            return res.versions.find(v => v.id == res.latest.snapshot);
-         
-          default:
-            return res.versions.find(v => v.id == version);
-        }
-      });
+        .then(res => {
+          switch (version) {
+            case "latest":
+            case "l":
+              return res.versions.find(v => v.id == res.latest.release);
+
+            case "latest-snapshot":
+            case "ls":
+              return res.versions.find(v => v.id == res.latest.snapshot);
+
+            default:
+              return res.versions.find(v => v.id == version);
+          }
+        });
       if (!serverVersion) {
         return console.log(`Error: Unable to find version "${version}"`);
       }
 
-      fs.mkdirSync(fullPath, {recursive: true});
+      fs.mkdirSync(fullPath, { recursive: true });
       console.clear();
       Api.downloadServer(
         Api.getRelease(
           serverVersion
         ), fullPath, "server").then(dl => {
-        dl.on("data", (_, r, t) => {
-          let received = new util.Byte(r);
-          let total = new util.Byte(t);
-          process.stdout.cursorTo(0, 0);
-          console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-          + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+          dl.on("data", (_, r, t) => {
+            let received = new util.Byte(r);
+            let total = new util.Byte(t);
+            process.stdout.cursorTo(0, 0);
+            console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
+              + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+          });
+
+          dl.on("finish", () => {
+            console.log("Finished updating to version " + serverVersion.id + ".\n");
+          });
         });
-      
-        dl.on("finish", () => {
-          console.log("Finished updating to version "+ serverVersion.id +".\n");
-        });
-      });
     }
     else if (operator == "versions") {
       Api.getVersions().then(versions => {
         let versionsText = versions.versions.map(
           v => v.id + " - " + v.type
-          + (versions.latest.release == v.id ? " (Latest Release)" : versions.latest.snapshot == v.id ? " (Latest Snapshot)" : "")
+            + (versions.latest.release == v.id ? " (Latest Release)" : versions.latest.snapshot == v.id ? " (Latest Snapshot)" : "")
         ).reverse().join("\n");
 
         console.log(versionsText);
@@ -314,7 +315,7 @@ switch (operator) {
           console.log("  @" + file);
         }
       }
-      
+
       let files = fs.readdirSync("./");
       console.log("\nServers in this directory:");
       for (let i = 0; i < files.length; i++) {
@@ -334,7 +335,7 @@ switch (operator) {
 })();
 
 function help() {
-console.log(`
+  console.log(`
 ${packageJson.displayName} CLI.
   Usage:
     ionmc - Display help

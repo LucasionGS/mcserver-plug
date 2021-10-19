@@ -2,7 +2,7 @@
 
 import { Api, Server } from "..";
 import util from "../lib/IonUtil";
-import * as fs from "fs";
+import fs from "fs";
 import { basename, dirname, resolve } from "path";
 import { Config } from "../lib/Configuration";
 import ln from "symlink-dir";
@@ -17,14 +17,13 @@ namespace IonMC {
   if (path === false) {
     throw new Error("Unsupported system for CLI. Supported systems are Windows and Linux for the CLI.");
   }
-  export let globalServersPath: string;
   export const ionmcDir = resolve(path, ".ionmc");
-  IonMC.globalServersPath = resolve(ionmcDir, "servers");
+  export const globalServersPath = resolve(ionmcDir, "servers");
   if (!fs.existsSync(ionmcDir)) {
     fs.mkdirSync(ionmcDir);
   }
-  if (!fs.existsSync(IonMC.globalServersPath)) {
-    fs.mkdirSync(IonMC.globalServersPath);
+  if (!fs.existsSync(globalServersPath)) {
+    fs.mkdirSync(globalServersPath);
   }
 
 }
@@ -159,6 +158,7 @@ switch (operator) {
       else objectType = "dir";
 
       let config = Config.load(object);
+
       if (objectType == "dir") {
         let jarPath = resolve(object, "server.jar");
         let jsPath = resolve(object, "server.js");
@@ -180,7 +180,8 @@ switch (operator) {
         import(object);
       }
       else if (objectType == "jar") {
-        let server = new Server(object);
+        let server = new Server(object, true, config);
+        server.start();
         server.on("data", server.write);
         server.on("stopped", () => {
           console.log("Server has been stopped. Exiting...");

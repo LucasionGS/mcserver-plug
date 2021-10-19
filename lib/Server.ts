@@ -4,15 +4,15 @@ import * as fs from "fs";
 import { EventEmitter } from "events";
 import util from "./IonUtil";
 import { User } from "./User";
-import { stdout } from "process";
 import * as readline from "readline";
 import { TellRawTextObjectWithEvents } from "./CommandTypes";
+import { Config } from "./Configuration";
 
 export class Server extends EventEmitter {
   /**
    * Initialize a minecraft server.
    * @param serverJarPath Path to the server.jar file. (Relative to the server root folder. In most cases can be left empty.)
-   * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
+   * @param preventStartup If set to `true`, skips the startup and has to be done manually using start();
    ```js
    let server = new Server("/path/to/server.jar", true);
    server.start();
@@ -20,13 +20,29 @@ export class Server extends EventEmitter {
    */
   constructor();
   constructor(serverJarPath: string);
-  constructor(serverJarPath: string, skipStartup: boolean);
-  constructor(serverJarPath: string = "server.jar", skipStartup: boolean = false) {
+  constructor(serverJarPath: string, preventStartup: boolean);
+  constructor(serverJarPath: string, preventStartup: boolean, config: Config);
+  constructor(serverJarPath: string = "server.jar", preventStartup: boolean = false, config?: Config) {
     super();
     this.serverJarPath = Path.resolve(serverJarPath);
+    if (!config) config = Config.load(
+      Path.dirname(
+        Path.resolve(serverJarPath)
+      )
+    );
 
-    if (skipStartup !== true) this.start();
+    if (config) {
+      if (config.serverConfig.xms) this.xms = config.serverConfig.xms;
+      if (config.serverConfig.xmx) this.xmx = config.serverConfig.xmx;
+      if (config.serverConfig.java) this.java = config.serverConfig.java;
+    }
+
+    this.config = config;
+
+    if (preventStartup !== true) this.start();
   }
+
+  public config: Config;
 
   terminal: readline.Interface;
 
@@ -46,7 +62,7 @@ export class Server extends EventEmitter {
     this.emit("write", data);
     if (data instanceof ConsoleInfo) data = data.toString();
     else if (typeof data == "object") data = JSON.stringify(data, null, 2);
-    stdout.write(data + "\n");
+    process.stdout.write(data + "\n");
   }
 
   ready: boolean = false;
@@ -56,11 +72,11 @@ export class Server extends EventEmitter {
       [name]: value
     })
   }
-  
+
   public getProperty<T extends keyof ServerProperties>(name: T): ServerProperties[T] {
     return this.parseProperties()[name];
   }
-  
+
   public setProperties(keyValues: Partial<ServerProperties>) {
     let p = this.parseProperties();
 
@@ -81,7 +97,7 @@ export class Server extends EventEmitter {
 
     fs.writeFileSync(this.directoryPath + "/server.properties", newText);
   }
-  
+
   private parseProperties() {
     let properties: ServerProperties = {} as ServerProperties;
     let text = fs.readFileSync(this.directoryPath + "/server.properties", "utf8");
@@ -109,12 +125,12 @@ export class Server extends EventEmitter {
     let firstCmdWord = parts[0];
     if (this.commands.hasOwnProperty(firstCmdWord)) {
       return (this.commands as any)[firstCmdWord](parts.length == 1 ? parts.join(" ") : null) as Promise<ConsoleInfo<CommandName>>;
-    } 
+    }
     else {
       return this.executeCustomCommand<CommandName>(command);
     }
   }
-  
+
   public executeIonCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>>;
   public executeIonCommand<CommandName extends keyof CommandMap>(command: string): Promise<ConsoleInfo<CommandName>>;
   public executeIonCommand<CommandName extends keyof CommandMap>(command: CommandName): Promise<ConsoleInfo<CommandName>> {
@@ -130,7 +146,7 @@ export class Server extends EventEmitter {
       }))
     }
   }
-  
+
   public executeCustomCommand<CommandName extends keyof CommandMap = null>(command: string): Promise<ConsoleInfo<CommandName>>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo> {
@@ -165,12 +181,18 @@ export class Server extends EventEmitter {
     return ops.findIndex(o => o.uuid == user.uuid) != -1;
   }
 
-  private start() {
+  private xms = "2048M";
+  private xmx = "2048M";
+
+  private java = "java";
+
+  public start() {
+    const stdoutName = this.config?.serverConfig.useStderr ? "stderr" : "stdout";
     this.write("Starting server...");
-    
-    let proc = cp.spawn("java", [
-      "-Xmx2048M", // Memory
-      "-Xms2048M", // Memory
+
+    let proc = cp.spawn(this.java, [
+      `-Xmx${this.xmx}`, // Memory
+      `-Xms${this.xms}`, // Memory
       "-jar",
       this.fileName, // Jar File
       "nogui" // Makes it CMD specific
@@ -178,8 +200,12 @@ export class Server extends EventEmitter {
       cwd: this.directoryPath
     });
 
-    proc.stdout.on("data", chk => {
-      let info = new ConsoleInfo(chk);
+    const onOutput = (chk: Buffer) => {
+      const data = chk.toString().replace(/\r?\n|\s$/, "");
+
+      if (data == ">" || data == "") return;
+      // fs.appendFileSync("/home/ion/development/ionmc/log", "<<Start: " + data + " :End>>\n");
+      let info = new ConsoleInfo(data);
       this.emit("data", info);
 
       { // Emits for special data
@@ -219,17 +245,20 @@ export class Server extends EventEmitter {
           this.emit("message", m[2], user);
         }
       }
-    });
+    };
 
-    proc.stdout.on("error", console.error);
-    proc.stdout.on("end", () => this.emit("stopped"));
+    // Due to older minecraft versions for some reason using stderr as their stdout, this needs to be an option.
+    proc[stdoutName].on("data", onOutput);
+    proc[stdoutName].on("error", console.error);
+    proc[stdoutName].on("end", () => this.emit("stopped"));
+
 
     // Open access to terminal.
     if (this.process != null) this.process.kill("SIGKILL");
     this.process = proc;
     process.openStdin();
 
-    this.terminal = readline.createInterface(process.stdin);
+    this.terminal = readline.createInterface(process.stdin, process.stdout,);
     this.terminal.on("line", line => {
       if (!line.startsWith("@")) {
         // Minecraft command
@@ -274,12 +303,12 @@ export class Server extends EventEmitter {
     },
     scoreboard: async (text: string) => {
       let info = await this.executeCustomCommand<"scoreboard">("scoreboard " + text);
-      
+
       return info;
     },
     tellRaw: async (user: User, text: TellRawTextObjectWithEvents) => {
       let info = await this.executeCustomCommand<"tellRaw">(`tellraw ${user.username} ${typeof text === "object" ? JSON.stringify(text) : `"${text}"`}`);
-      
+
       return info;
     },
   }
@@ -426,10 +455,10 @@ export type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
 export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   constructor(data: string) {
     data += "";
-    let m = (data).match(/\[(\d+:\d+:\d+)\] \[(.*?)\/(.*?)\]: (.*)/);
+    let m = (data).match(/\[?(\d+:\d+:\d+)\]?\s+\[(?:(.*?)\/)?(.*?)\]:?\s+(.*)/);
     if (m) {
       this.timeStamp = m[1];
-      this.sender = m[2];
+      this.sender = m[2] || "Server";
       this.messageType = m[3] as ConsoleInfoMessageType;
       this.message = m[4];
     }
@@ -440,7 +469,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
         message: "Unable to parse: \"" + data + "\""
       })
       this.timeStamp = tmp.timeStamp;
-      this.sender =tmp.sender;
+      this.sender = tmp.sender;
       this.messageType = tmp.messageType;
       this.message = tmp.message;
     }
@@ -464,7 +493,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     let info = new ConsoleInfo(
       `[${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}] [${options.sender || "IonMC"}/${options.messageType || "INFO"}]: ${options.message}`
     );
-    
+
 
     return info;
   }
@@ -475,35 +504,35 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   toString() {
     return `[${this.timeStamp}] [${this.sender}/${this.messageType}]: ${this.message}`;
   }
-  
+
   /**
    * Convert object into an HTMLDivElement containing the data.
    */
   toHTML() {
     function escapeHtml(html: string) {
       return html
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-   }
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
 
     if (!document) {
       throw new Error("No document found.");
     };
-    
+
     let div = document.createElement("div");
     let color = "";
     switch (this.messageType) {
       case "WARN":
         color = "yellow";
         break;
-      
+
       case "FATAL":
         color = "red";
         break;
-      
+
       case "NODEJS":
         color = "lightblue";
         break;

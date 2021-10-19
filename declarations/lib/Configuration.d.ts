@@ -5,11 +5,17 @@ export declare class Config {
     serverConfig: Config.IonConfig["config"];
 }
 export declare namespace Config {
-    function init(serverRoot: string, version: string): void;
-    function load(serverRoot: string): Config;
-    interface IonConfig {
+    export function init(serverRoot: string, version?: string): void;
+    export function load(serverRoot: string): Config;
+    export interface IonConfig {
         config: {
             version: string;
+            xms: XMX;
+            xmx: XMX;
+            java: string;
+            useStderr: boolean;
         };
     }
+    type XMX = `${number}${"K" | "M" | "G"}`;
+    export {};
 }

@@ -4,11 +4,12 @@ import { EventEmitter } from "events";
 import { User } from "./User";
 import * as readline from "readline";
 import { TellRawTextObjectWithEvents } from "./CommandTypes";
+import { Config } from "./Configuration";
 export declare class Server extends EventEmitter {
     /**
      * Initialize a minecraft server.
      * @param serverJarPath Path to the server.jar file. (Relative to the server root folder. In most cases can be left empty.)
-     * @param skipStartup If set to `true`, skips the startup and has to be done manually using start();
+     * @param preventStartup If set to `true`, skips the startup and has to be done manually using start();
      ```js
      let server = new Server("/path/to/server.jar", true);
      server.start();
@@ -16,7 +17,9 @@ export declare class Server extends EventEmitter {
      */
     constructor();
     constructor(serverJarPath: string);
-    constructor(serverJarPath: string, skipStartup: boolean);
+    constructor(serverJarPath: string, preventStartup: boolean);
+    constructor(serverJarPath: string, preventStartup: boolean, config: Config);
+    config: Config;
     terminal: readline.Interface;
     /**
      * Write console info to the output.
@@ -48,7 +51,10 @@ export declare class Server extends EventEmitter {
     userList: User[];
     getOperators(): Promise<Operator[]>;
     isUserOperator(user: User): Promise<boolean>;
-    private start;
+    private xms;
+    private xmx;
+    private java;
+    start(): cp.ChildProcessWithoutNullStreams;
     stop(force?: boolean): void;
     process: cp.ChildProcess;
     commands: {

@@ -1,5 +1,5 @@
 import { resolve } from "path";
-import * as fs from "fs";
+import fs from "fs";
 
 
 export class Config {
@@ -25,22 +25,28 @@ export class Config {
   serverRoot: string;
   configPath: string;
   serverConfig: Config.IonConfig["config"] = {
-    version: null
+    version: null,
+    xms: "2048M",
+    xmx: "2048M",
+    java: "java",
+    useStderr: false,
   };
 
 
 }
 
 export namespace Config {
-  export function init(serverRoot: string, version: string) {
+  export function init(serverRoot: string, version?: string) {
     let c = new Config(serverRoot);
+    c.serverConfig.version = version;
     fs.writeFileSync(resolve(c.configPath, "serverConfig.json"), JSON.stringify(c.serverConfig, null, 2));
   }
 
   export function load(serverRoot: string): Config {
-    let path = resolve(serverRoot, "serverConfig.json");
+    let path = resolve(serverRoot, ".ion", "serverConfig.json");
     if (!fs.existsSync(path)) {
-      return null;
+      init(serverRoot);
+      // return null;
     }
     return new Config(serverRoot);
   }
@@ -48,6 +54,12 @@ export namespace Config {
   export interface IonConfig {
     config: {
       version: string;
+      xms: XMX,
+      xmx: XMX,
+      java: string,
+      useStderr: boolean
     }
   }
+
+  type XMX = `${number}${"K" | "M" | "G"}`;
 }

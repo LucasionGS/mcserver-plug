@@ -1,15 +1,15 @@
 {
   "name": "ionmc",
   "displayName": "IonMC Server Utility",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A management tool for downloading, updating, running, and interacting with minecraft servers.",
-  "main": "index.js",
+  "main": "dist/index.js",
   "directories": {
     "lib": "lib",
     "test": "tests"
   },
   "bin": {
-    "ionmc": "bin/cli.js"
+    "ionmc": "dist/bin/cli.js"
   },
   "dependencies": {
     "@types/node": "^14.14.11",

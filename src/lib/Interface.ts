@@ -179,7 +179,9 @@ namespace Manager {
       action: "attached",
       serverLog: server.serverLog.map(i => i.toString())
     });
-    sendPlayers(ws, server);
+    setTimeout(() => {
+      sendPlayers(ws, server);
+    }, 100);
   }
 
   export function input(pid: number, value: string) {

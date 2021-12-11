@@ -1,6 +1,8 @@
 import * as Path from "path";
 import * as cp from "child_process";
-import * as fs from "fs";
+import * as pty from "node-pty";
+import fs from "fs";
+import fsp from "fs/promises";
 import { EventEmitter } from "events";
 import util from "./IonUtil";
 import { User } from "./User";
@@ -8,11 +10,16 @@ import * as readline from "readline";
 import { TellRawTextObjectWithEvents } from "./CommandTypes";
 import { Config } from "./Configuration";
 
+interface ServerOptions {
+  preventStart?: boolean;
+  noReadline?: boolean;
+}
+
 export class Server extends EventEmitter {
   /**
    * Initialize a minecraft server.
    * @param serverJarPath Path to the server.jar file. (Relative to the server root folder. In most cases can be left empty.)
-   * @param preventStartup If set to `true`, skips the startup and has to be done manually using start();
+   * @param options A set of options when starting the server this once.
    ```js
    let server = new Server("/path/to/server.jar", true);
    server.start();
@@ -20,10 +27,18 @@ export class Server extends EventEmitter {
    */
   constructor();
   constructor(serverJarPath: string);
-  constructor(serverJarPath: string, preventStartup: boolean);
-  constructor(serverJarPath: string, preventStartup: boolean, config: Config);
-  constructor(serverJarPath: string = "server.jar", preventStartup: boolean = false, config?: Config) {
+  /** @deprecated */ constructor(serverJarPath: string, preventStartup: boolean);
+  /** @deprecated */ constructor(serverJarPath: string, preventStartup: boolean, config: Config);
+  constructor(serverJarPath: string, options: ServerOptions);
+  constructor(serverJarPath: string, options: ServerOptions, config: Config);
+  constructor(serverJarPath: string = "server.jar", options: boolean | ServerOptions = false, config?: Config) {
     super();
+    if (typeof options == "boolean") {
+      options = {
+        preventStart: options
+      };
+    }
+
     this.serverJarPath = Path.resolve(serverJarPath);
     if (!config) config = Config.load(
       Path.dirname(
@@ -39,12 +54,46 @@ export class Server extends EventEmitter {
 
     this.config = config;
 
-    if (preventStartup !== true) this.start();
+    if (options.noReadline) this.noReadLine = true;
+    // Last
+    if (options.preventStart !== true) this.start();
   }
+
+  private noReadLine: boolean = false;
 
   public config: Config;
 
   terminal: readline.Interface;
+
+  public get pid() {
+    return this.process.pid;
+  }
+
+  private async setSessionLock(lock: boolean) {
+    try {
+      let pid = this.process?.pid;
+      if (lock && pid) {
+        fsp.writeFile(this.directoryPath + "/session.lock", `${pid}`);
+      }
+      else {
+        await fsp.unlink(this.directoryPath + "/session.lock");
+      }
+    } catch (error) {
+      return;
+    }
+  }
+
+  /**
+   * 
+   * @returns The session PID if the server is running, otherwise null.
+   */
+  public async getSessionLock() {
+    try {
+      return +(await fsp.readFile(this.directoryPath + "/session.lock", "utf8"));
+    } catch (error) {
+      return null;
+    }
+  }
 
   /**
    * Write console info to the output.
@@ -150,9 +199,11 @@ export class Server extends EventEmitter {
   public executeCustomCommand<CommandName extends keyof CommandMap = null>(command: string): Promise<ConsoleInfo<CommandName>>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo>;
   public executeCustomCommand(command: string): Promise<ConsoleInfo> {
-    this.process.stdin.write(command + "\n");
+    //# this.process.stdin.write(command + "\n");
+    this.process.write(command + "\n");
     let p = util.promise<ConsoleInfo>();
-    this.process.stdout.once("data", (chk) => {
+    //# this.process.stdout.once("data", (chk) => {
+    this.process.onData((chk) => {
       p.resolve(new ConsoleInfo(chk));
     });
     return p.promise;
@@ -187,10 +238,10 @@ export class Server extends EventEmitter {
   private java = "java";
 
   public start() {
-    const stdoutName = this.config?.serverConfig.useStderr ? "stderr" : "stdout";
-    this.write("Starting server...");
+    // this.write("Starting server...");
 
-    let proc = cp.spawn(this.java, [
+    // let proc = cp.spawn(this.java, [
+    let proc = pty.spawn(this.java, [
       `-Xmx${this.xmx}`, // Memory
       `-Xms${this.xms}`, // Memory
       "-jar",
@@ -200,18 +251,24 @@ export class Server extends EventEmitter {
       cwd: this.directoryPath
     });
 
-    const onOutput = (chk: Buffer) => {
-      const data = chk.toString().replace(/\r?\n|\s$/, "");
+    // const onOutput = (chk: Buffer) => {
+    const onOutput = (chk: string) => {
+      const data = chk.replace(/\r?\n|\s$/, "");
 
       if (data == ">" || data == "") return;
       // fs.appendFileSync("/home/ion/development/ionmc/log", "<<Start: " + data + " :End>>\n");
       let info = new ConsoleInfo(data);
+      this.serverLog.push(info);
       this.emit("data", info);
 
       { // Emits for special data
         let m: RegExpMatchArray;
         if (!this.ready) {
-          // if (info.sender == "main" && info.messageType == "INFO"
+          // if (
+          //   // (
+          //   //   info.sender == "main" || info.sender == "ServerMain"
+          //   // ) &&
+          //   info.messageType == "INFO"
           // && (m = info.message.match(/^You need to agree to the EULA in order to run the server\. Go to eula\.txt for more info\.$/))) {
           //   let eula = fs.readFileSync(this.directoryPath + "/eula.txt", "utf8");
           //   fs.writeFileSync(this.directoryPath + "/eula.txt", eula.replace("false", "true"));
@@ -248,34 +305,43 @@ export class Server extends EventEmitter {
     };
 
     // Due to older minecraft versions for some reason using stderr as their stdout, this needs to be an option.
-    proc[stdoutName].on("data", onOutput);
-    proc[stdoutName].on("error", console.error);
-    proc[stdoutName].on("end", () => this.emit("stopped"));
+    //# proc[stdoutName].on("data", onOutput);
+    proc.onData(onOutput);
+    //# proc[stdoutName].on("error", console.error);
+    //# proc[stdoutName].on("end", () => this.emit("stopped"));
+    proc.onExit(() => {
+      this.setSessionLock(false);
+      this.emit("stopped");
+    });
 
 
     // Open access to terminal.
     if (this.process != null) this.process.kill("SIGKILL");
     this.process = proc;
-    process.openStdin();
+    this.setSessionLock(true);
 
-    this.terminal = readline.createInterface(process.stdin, process.stdout,);
-    this.terminal.on("line", line => {
-      if (!line.startsWith("@")) {
-        // Minecraft command
-        this.executeCustomCommand(line);
-      }
-      else {
-        // IonMC command.
-        let cmd = line.startsWith("@") ? line.substring(1) : line;
-        let res = this.executeIonCommand(cmd)
-        if (res instanceof Promise) res.then(res => {
-          if (res.data) this.write(res.data);
-        })
-        if (res instanceof ConsoleInfo) {
-          if (res.data) this.write(res.data);
+    if (!this.noReadLine) {
+      process.openStdin();
+
+      this.terminal = readline.createInterface(process.stdin, process.stdout);
+      this.terminal.on("line", line => {
+        if (!line.startsWith("@")) {
+          // Minecraft command
+          this.executeCustomCommand(line);
         }
-      }
-    });
+        else {
+          // IonMC command.
+          let cmd = line.startsWith("@") ? line.substring(1) : line;
+          let res = this.executeIonCommand(cmd)
+          if (res instanceof Promise) res.then(res => {
+            if (res.data) this.write(res.data);
+          })
+          if (res instanceof ConsoleInfo) {
+            if (res.data) this.write(res.data);
+          }
+        }
+      });
+    }
 
     return proc;
   }
@@ -285,7 +351,8 @@ export class Server extends EventEmitter {
     else this.executeCustomCommand("stop");
   }
 
-  process: cp.ChildProcess = null;
+  // process: cp.ChildProcess = null;
+  process: pty.IPty = null;
 
   commands = {
     list: async () => {
@@ -326,6 +393,8 @@ export class Server extends EventEmitter {
     console.clear();
     this.emit("clear");
   }
+
+  serverLog: ConsoleInfo[] = [];
 }
 
 export interface Server extends EventEmitter {
@@ -451,10 +520,16 @@ export type CommandMap = {
 }
 
 export type ConsoleInfoMessageType = "INFO" | "WARN" | "FATAL" | "NODEJS";
+export interface ConsoleInfoTemplate {
+  sender?: string,
+  messageType?: ConsoleInfoMessageType,
+  message: string,
+  raw?: boolean
+}
 
 export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   constructor(data: string) {
-    data += "";
+    data += ""; // Ensure it's a string
     let m = (data).match(/\[?(\d+:\d+:\d+)\]?\s+\[(?:(.*?)\/)?(.*?)\]:?\s+(.*)/);
     if (m) {
       this.timeStamp = m[1];
@@ -465,27 +540,22 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     else {
       let tmp = ConsoleInfo.create({
         sender: "IonMC",
-        messageType: "FATAL",
-        message: "Unable to parse: \"" + data + "\""
+        messageType: "WARN",
+        // message: "Unable to parse: \"" + data + "\"",
+        message: data,
+        raw: true
       })
       this.timeStamp = tmp.timeStamp;
       this.sender = tmp.sender;
       this.messageType = tmp.messageType;
       this.message = tmp.message;
+      this.raw = tmp.raw;
     }
   }
 
   static create(message: string): ConsoleInfo;
-  static create(options: {
-    sender?: string,
-    messageType?: ConsoleInfoMessageType,
-    message: string
-  }): ConsoleInfo;
-  static create(options: string | {
-    sender?: string,
-    messageType?: ConsoleInfoMessageType,
-    message: string
-  }): ConsoleInfo {
+  static create(options: ConsoleInfoTemplate): ConsoleInfo;
+  static create(options: string | ConsoleInfoTemplate): ConsoleInfo {
     if (typeof options == "string") options = {
       message: options,
     }
@@ -494,7 +564,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
       `[${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}] [${options.sender || "IonMC"}/${options.messageType || "INFO"}]: ${options.message}`
     );
 
-
+    info.raw = options.raw ?? false;
     return info;
   }
 
@@ -502,6 +572,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
    * Convert object into a string.
    */
   toString() {
+    if (this.raw) return this.message;
     return `[${this.timeStamp}] [${this.sender}/${this.messageType}]: ${this.message}`;
   }
 
@@ -545,6 +616,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
   sender: string;
   messageType: ConsoleInfoMessageType;
   message: string;
+  raw: boolean = false;
   /**
    * Use will be set with data from an executed command.
    */

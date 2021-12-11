@@ -1,0 +1,4 @@
+export function isAction(obj, action) {
+    return obj.action === action;
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiV1NNZXNzYWdlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiV1NNZXNzYWdlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUVBLE1BQU0sVUFBVSxRQUFRLENBQXNDLEdBQXFCLEVBQUUsTUFBUztJQUM1RixPQUFPLEdBQUcsQ0FBQyxNQUFNLEtBQUssTUFBTSxDQUFDO0FBQy9CLENBQUMifQ==

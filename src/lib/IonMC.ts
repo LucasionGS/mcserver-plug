@@ -84,14 +84,7 @@ namespace IonMC {
     let [
       operator, object, version, ...rest
     ]: [
-        "download" |
-        "start" | "run" |
-        "update" | "up" |
-        "versions" |
-        "version" |
-        "init" |
-        "list" | "ls" |
-        "setglobal",
+        "server" | "download" | "start" | "run" | "update" | "up" | "versions" | "version" | "init" | "list" | "ls" | "setglobal",
         ...string[]
       ] = args as any;
 
@@ -115,7 +108,10 @@ namespace IonMC {
 
     (async function command() {
       if (operator) {
-        if (operator == "download") {
+        if (operator == "server") {
+          return import("./Interface");
+        }
+        else if (operator == "download") {
           if (!object) {
             return help();
           }
@@ -220,7 +216,9 @@ namespace IonMC {
             import(object);
           }
           else if (objectType == "jar") {
-            let server = new Server(object, true, config);
+            let server = new Server(object, {
+              preventStart: true,
+            }, config);
             server.start();
             server.on("data", server.write);
             server.on("stopped", () => {

@@ -1,0 +1,39 @@
+/* Dark theme */
+body {
+  background-color: #1a1a1a;
+  color: white;
+}
+
+.container {
+  border: solid 1px #eee;
+}
+
+.container .container-item {
+  border: solid 1px #eee;
+  padding: 10px;
+  user-select: none;
+}
+
+.container .container-item.container-item-small {
+  border: solid 1px #eee;
+  padding: 5px;
+}
+
+.container .container-item:hover {
+  background-color: #3b3b3b;
+}
+
+.container .container-item:active {
+  background-color: #2b2b2b;
+}
+
+input.console-input {
+  width: 100%;
+  border: none;
+  background-color: #3b3b3b;
+  padding: 5px;
+  box-sizing: border-box;
+  font-family: monospace;
+  font-size: 12px;
+  color: white;
+}

@@ -11,21 +11,27 @@
   "bin": {
     "ionmc": "dist/bin/cli.js"
   },
-  "dependencies": {
-    "@types/node": "^14.14.11",
-    "@types/node-fetch": "^2.5.7",
-    "node-fetch": "^2.6.1",
-    "request": "^2.88.2",
-    "symlink-dir": "^4.1.0"
-  },
   "scripts": {
-    "test": "node ./tests/wrap.js"
+    "test": "node ./tests/wrap.js",
+    "compile": "tsc -b . ./interface -w"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1",
+    "node-pty": "^0.10.1",
+    "request": "^2.88.2",
+    "symlink-dir": "^4.1.0",
+    "ws": "^8.3.0"
+  },
   "devDependencies": {
-    "@types/request": "^2.48.5"
+    "@types/express": "^4.17.13",
+    "@types/node": "^14.14.11",
+    "@types/node-fetch": "^2.5.7",
+    "@types/request": "^2.48.5",
+    "@types/ws": "^8.2.2"
   },
   "repository": {
     "type": "github",

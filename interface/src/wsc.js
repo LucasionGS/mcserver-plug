@@ -1,0 +1,3 @@
+const ws = new WebSocket("ws://192.168.0.31:8091");
+export default ws;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoid3NjLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsid3NjLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sRUFBRSxHQUFHLElBQUksU0FBUyxDQUFDLHdCQUF3QixDQUFDLENBQUM7QUFFbkQsZUFBZSxFQUFFLENBQUMifQ==

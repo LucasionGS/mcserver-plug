@@ -149,7 +149,6 @@ namespace IonMC {
           }
 
           fs.mkdirSync(fullPath, { recursive: true });
-          console.clear();
           Api.downloadServer(
             Api.getRelease(
               serverVersion
@@ -157,16 +156,18 @@ namespace IonMC {
               dl.on("data", (_, r, t) => {
                 let received = new util.Byte(r);
                 let total = new util.Byte(t);
-                process.stdout.cursorTo(0, 0);
                 console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
                   + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+                process.stdout.moveCursor(0, -2);
               });
 
               dl.on("finish", () => {
+
                 console.log(
-                  "Finished download.\n",
-                  "Start the using command `ionmc start` in the directory.\n"
+                  "\n\n\nFinished download.\n" +
+                  "\tStart the using command `ionmc start` in the directory.\n"
                 );
+                fs.writeFileSync(Path.resolve(fullPath, "eula.txt"), "eula=true\n");
                 Config.init(fullPath, serverVersion.id);
               });
             });

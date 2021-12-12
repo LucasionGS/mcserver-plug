@@ -12,6 +12,7 @@ body {
   border: solid 1px #eee;
   padding: 10px;
   user-select: none;
+  word-wrap: break-word;
 }
 
 .container .container-item.container-item-small {
@@ -36,4 +37,65 @@ input.console-input {
   font-family: monospace;
   font-size: 12px;
   color: white;
+}
+
+.server-list {
+  width: 100%;
+  table-layout: fixed;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.server-list tr {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.server-list .server-list-header {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.server-list .server-list-header .server-list-header-item {
+  border: solid 1px #eee;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.server-list .server-list-item {
+  border: solid 1px #eee;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.server-list .server-list-item button.server-list-item-button {
+  background-color: #3b3b3b;
+  border: none;
+  color: white;
+  padding: 5px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.server-list .server-list-item button.server-list-item-button:hover {
+  background-color: #2b2b2b;
+}
+
+.server-list .server-list-item button.server-list-item-button:active {
+  background-color: #1a1a1a;
 }

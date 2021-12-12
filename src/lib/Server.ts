@@ -69,6 +69,10 @@ export class Server extends EventEmitter {
     return this.process.pid;
   }
 
+  public get name() {
+    return Path.basename(this.directoryPath);
+  }
+
   private async setSessionLock(lock: boolean) {
     try {
       let pid = this.process?.pid;

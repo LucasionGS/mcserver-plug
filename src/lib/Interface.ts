@@ -14,7 +14,9 @@ app.listen(PORT, () => {
   console.log(`Express: listening on port ${PORT}`);
 });
 // __dirname is from dist
-app.use(express.static(Path.resolve(__dirname, "../../interface")));
+app.use(express.static(Path.resolve(__dirname, "../../interface"), {
+  extensions: ["html", "htm"],
+}));
 
 const wss = new WebSocket.Server({ port: WSPORT }, () => {
   console.log(`Websocket: listening on port ${WSPORT}`);
@@ -106,6 +108,10 @@ namespace Manager {
       startServer();
       server.start();
       servers[server.pid] = server;
+
+      server.on("stopped", () => {
+        delete servers[server.pid];
+      });
     }
 
     if (!server) {
@@ -116,10 +122,6 @@ namespace Manager {
       });
       return;
     }
-
-    server.on("stopped", () => {
-      delete servers[server.pid];
-    });
 
     if (ws) {
       attach(server.pid, ws);
@@ -137,16 +139,15 @@ namespace Manager {
         message: info.toString(),
       });
     };
-    
-    
     server.on("data", onData);
     
-    server.on("stopped", () => {
+    const onStopped = () => {
       WS.send(ws, {
         pid: pid,
         action: "stopped",
       });
-    });
+    };
+    server.on("stopped", onStopped);
 
     const onConnect = async (user: User): Promise<void> => {
       WS.send(ws, {
@@ -170,6 +171,7 @@ namespace Manager {
 
     ws.on("close", () => {
       server.off("data", onData);
+      server.off("stopped", onStopped);
       server.off("connect", onConnect);
       server.off("disconnect", onDisconnect);
     });
@@ -205,3 +207,11 @@ namespace Manager {
     });
   }
 }
+
+const router = express.Router();
+
+app.use("/api", router);
+
+router.get("/", (req, res) => {
+  res.send("Hello World!");
+});

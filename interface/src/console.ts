@@ -3,6 +3,7 @@ import { isAction, IWSActionMessage, IWSActionMessageMap } from "./objects/WSMes
 import { ConsoleInfo } from "./objects/ConsoleInfo.js";
 const WSTOKEN = "KJUH37IYFBHJFSD7TFASBN6TJBYHB6TBTYDFT"; // Temporary token
 let CURRENT_PID: number;
+const params = new URLSearchParams(window.location.search);
 
 function send(message: any) {
   message.token = WSTOKEN;
@@ -12,10 +13,15 @@ function send(message: any) {
 ws.addEventListener("open", () => {
   console.log("Connected to server");
 
-  send({
-    action: "server-list",
-    // name: "test",
-  });
+  if (params.has("server")) {
+    const server = params.get("server");
+    console.log("Connecting to server: " + server + "...");
+    send({
+      action: "start",
+      name: server,
+    });
+  }
+  
 });
 
 ws.addEventListener("message", (event) => {
@@ -29,7 +35,7 @@ ws.addEventListener("message", (event) => {
     const div = info.toHTML();
     div.classList.add("container-item", "container-item-small");
     consoleDiv.appendChild(div);
-    consoleDiv.scrollTo(0, consoleDiv.scrollHeight);
+    if ((consoleDiv.scrollHeight - consoleDiv.clientHeight) - 128 < consoleDiv.scrollTop) consoleDiv.scrollTo(0, consoleDiv.scrollHeight);
   }
   else if (isAction(data, "attached")) {
     CURRENT_PID = data.pid;
@@ -39,9 +45,9 @@ ws.addEventListener("message", (event) => {
     const consoleDiv = document.getElementById("server-console") as HTMLDivElement;
     consoleDiv.innerHTML = "";
     (data.serverLog ?? []).slice(-100).forEach((line) => {
-      const div = document.createElement("div");
+      const info = new ConsoleInfo(line);
+      const div = info.toHTML();
       div.classList.add("container-item", "container-item-small");
-      div.innerText = line;
       consoleDiv.appendChild(div);
     });
     consoleDiv.scrollTo(0, consoleDiv.scrollHeight);
@@ -63,23 +69,6 @@ ws.addEventListener("message", (event) => {
         });
       });
       playersDiv.appendChild(div);
-    });
-  }
-
-  else if (isAction(data, "server-list")) {
-    const serversDiv = document.getElementById("server-list") as HTMLDivElement;
-    serversDiv.innerHTML = "";
-    data.servers.sort((a, b) => a.localeCompare(b)).forEach(s => {
-      const div = document.createElement("div");
-      div.classList.add("container-item");
-      div.innerText = s;
-      div.addEventListener("dblclick", e => {
-        send({
-          action: "start",
-          name: s,
-        });
-      });
-      serversDiv.appendChild(div);
     });
   }
 });

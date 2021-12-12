@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" src="src/Layout.js"></script>
-  <script type="module" src="src/running.js"></script>
+  <script type="module" src="src/console.js"></script>
   <link rel="stylesheet" href="css/index.css">
   <title>IonMC Server Manager</title>
 </head>
@@ -16,14 +16,13 @@
   <!-- Content -->
   <main>
     <div style="display: flex">
-      <div class="container" style="width: 100%; height: 50vh; overflow-y: auto;" id="server-console"></div>
+      <div class="container" style="width: 100%; height: 90vh; overflow-y: auto;" id="server-console"></div>
       <div style="display: flex; flex-direction: column;">
-        <div class="container" id="server-list" style="height: 100%;"></div>
-        <div><hr></div>
         <div class="container" id="player-list"></div>
       </div>
     </div>
     <input class="console-input" type="text" id="server-input">
+
   </main>
   <footer></footer>
 </body>

@@ -47,12 +47,6 @@ export class Server extends EventEmitter {
       )
     );
 
-    if (config) {
-      if (config.serverConfig.xms) this.xms = config.serverConfig.xms;
-      if (config.serverConfig.xmx) this.xmx = config.serverConfig.xmx;
-      if (config.serverConfig.java) this.java = config.serverConfig.java;
-    }
-
     this.config = config;
 
     if (options.noReadline) this.noReadLine = true;
@@ -255,10 +249,16 @@ export class Server extends EventEmitter {
     return ops.findIndex(o => o.uuid == user.uuid) != -1;
   }
 
-  private xms = "2048M";
-  private xmx = "2048M";
+  private get xms() {
+    return this.config?.serverConfig?.xms ?? "2048M";
+  }
+  private get xmx() {
+    return this.config?.serverConfig?.xmx ?? "2048M";
+  }
 
-  private java = "java";
+  private get java() {
+    return this.config?.serverConfig?.java ?? "java";
+  }
 
   public start() {
     // this.write("Starting server...");

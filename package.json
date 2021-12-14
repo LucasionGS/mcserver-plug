@@ -13,7 +13,8 @@
   },
   "scripts": {
     "test": "node ./tests/wrap.js",
-    "compile": "tsc -b . ./interface -w"
+    "compile": "tsc -b . ./interface",
+    "watch": "tsc -b . ./interface -w"
   },
   "keywords": [],
   "author": "",

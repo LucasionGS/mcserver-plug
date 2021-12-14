@@ -86,6 +86,14 @@ wss.on("connection", (ws: WebSocket) => {
 namespace Manager {
   export const servers: { [pid: string]: Server } = {};
 
+  export function getRunningServerByName(name: string) {
+    for (const pid in servers) {
+      const server = servers[pid];
+      if (server.name === name) return server;
+    }
+    return null;
+  }
+
   export async function start(name: string, ws?: WebSocket) {
     let server: Server;
     const startServer = () => {
@@ -206,12 +214,57 @@ namespace Manager {
       servers: (await IonMC.listServers(() => void 0)).global,
     });
   }
+
+  export function getServer(pid: number) {
+    return servers[pid] ?? null;
+  }
+
+  export function getServerByName(name: string) {
+    return getRunningServerByName(name) || Server.getServerByName(name);
+  }
+
+  export async function getAllServers() {
+    const servers = await Server.getAllServers();
+    for (let i = 0; i < servers.length; i++) {
+      const server = servers[i];
+      const found = getRunningServerByName(server.name);
+      if (found) {
+        servers[i] = found;
+      }
+    }
+    return servers;
+  }
+
+  export function getServerStatus(server: Server) {
+    const properties = server.parseProperties();
+    return {
+      name: server.name,
+      status: server.getStatus(),
+      players: server.userList.length,
+      maxPlayers: properties["max-players"],
+      port: properties["server-port"],
+    }
+  }
+
+  export function getServerProperties(server: Server) {
+    return server.parseProperties();
+  }
 }
 
 const router = express.Router();
 
 app.use("/api", router);
 
-router.get("/", (req, res) => {
-  res.send("Hello World!");
+function verifyToken() {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.query.token !== WSTOKEN) {
+      res.status(403).send("Invalid token");
+      return;
+    }
+    next();
+  }
+}
+
+router.get("/serverList", verifyToken(), async (req, res) => {
+  res.json(await Manager.getAllServers().then(s => s.map(Manager.getServerStatus)));
 });

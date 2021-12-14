@@ -9,6 +9,7 @@ import { User } from "./User";
 import * as readline from "readline";
 import { TellRawTextObjectWithEvents } from "./CommandTypes";
 import { Config } from "./Configuration";
+import IonMC from "./IonMC";
 
 interface ServerOptions {
   preventStart?: boolean;
@@ -120,6 +121,19 @@ export class Server extends EventEmitter {
 
   ready: boolean = false;
 
+  public isRunning() {
+    return !!this.process;
+  }
+
+  public isReady() {
+    return this.ready;
+  }
+
+  public getStatus() {
+    if (this.isRunning()) return this.isReady() ? "running" : "starting";
+    else return "offline";
+  }
+
   public setProperty<T extends keyof ServerProperties>(name: T, value: ServerProperties[T]) {
     this.setProperties({
       [name]: value
@@ -140,7 +154,7 @@ export class Server extends EventEmitter {
       }
     }
 
-    let newText = "# Minecraft Server Properties\n# Edited by MCServer Ionhancer\n";
+    let newText = "# Minecraft Server Properties\n# Managed by IonMC\n";
     for (const key in p) {
       if (Object.prototype.hasOwnProperty.call(p, key)) {
         const v = (p as any)[key];
@@ -151,9 +165,14 @@ export class Server extends EventEmitter {
     fs.writeFileSync(this.directoryPath + "/server.properties", newText);
   }
 
-  private parseProperties() {
+  public parseProperties() {
     let properties: ServerProperties = {} as ServerProperties;
-    let text = fs.readFileSync(this.directoryPath + "/server.properties", "utf8");
+    let text: string;
+    try {
+      text = fs.readFileSync(this.directoryPath + "/server.properties", "utf8");
+    } catch (error) {
+      return null;
+    }
     let matches = text.match(/(.+?)=(.*)/g);
 
     matches.forEach(m => {
@@ -399,6 +418,35 @@ export class Server extends EventEmitter {
   }
 
   serverLog: ConsoleInfo[] = [];
+
+  /**
+   * Get a specific `global` server.
+   * @param name Name of a global server to create a server instance of.
+   */
+  public static getServerByName(name: string): Server;
+  public static getServerByName(name: string, options: Omit<ServerOptions, "preventStart" | "noReadline">): Server;
+  public static getServerByName(name: string, options: Omit<ServerOptions, "preventStart" | "noReadline"> = {}) {
+    const globalPath = Path.resolve(IonMC.globalServersPath, name, "server.jar");
+    return new Server(globalPath, {
+      preventStart: true,
+      noReadline: true,
+      ...options
+    });
+  }
+
+  /**
+   * 
+   * @returns A list of all global servers.
+   */
+  public static async getAllServers() {
+    return IonMC.listServers(() => void 0).then(res => res.global).then(async (files) => {
+      let servers: Server[] = [];
+      for (let directory of files) {
+        servers.push(Server.getServerByName(directory));
+      }
+      return servers;
+    });
+  }
 }
 
 export interface Server extends EventEmitter {

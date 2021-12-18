@@ -5,6 +5,8 @@ import IonMC from "./IonMC";
 import { ConsoleInfo, ServerProperties } from "./Server";
 import { Server } from "./Server";
 import { User } from "./User";
+import expressBasicAuth from "express-basic-auth";
+import "colors";
 
 const app = express();
 const PORT = 8090;
@@ -13,6 +15,29 @@ const WSTOKEN = "KJUH37IYFBHJFSD7TFASBN6TJBYHB6TBTYDFT"; // Temporary token
 app.listen(PORT, () => {
   console.log(`Express: listening on port ${PORT}`);
 });
+
+const interfaceConfig = IonMC.getInterfaceConfig();
+
+// Check if interfaceConfig.users is an empty object.
+if (Object.keys(interfaceConfig.users).length === 0) {
+  console.log("No users defined in " + IonMC.interfaceConfigPath.dim);
+  console.log("Please add users to the config file like shown in the example below:");
+  console.log(`
+{
+  ${`"users"`.blue}: {
+    ${`"username"`.blue}: ${`"password"`.blue}
+  }
+}
+`)
+  process.exit(1);
+}
+
+const basisAuth = expressBasicAuth({
+  challenge: true,
+  users: interfaceConfig.users,
+});
+
+app.use(basisAuth);
 // __dirname is from dist
 app.use(express.static(Path.resolve(__dirname, "../../interface"), {
   extensions: ["html", "htm"],
@@ -211,7 +236,7 @@ namespace Manager {
   export async function sendServers(ws: WebSocket) {
     WS.send(ws, {
       action: "server-list",
-      servers: (await IonMC.listServers(() => void 0)).global,
+      servers: (await IonMC.listServers()).global,
     });
   }
 

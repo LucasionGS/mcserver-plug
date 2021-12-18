@@ -5,6 +5,7 @@ import Path, { basename, dirname } from "path";
 import { Config } from "./Configuration";
 import ln from "symlink-dir";
 import { platform } from "os";
+import InterfaceConfiguration from "./InterfaceConfiguration";
 
 /**
  * Interact with the IonMC CLI commands.
@@ -19,11 +20,22 @@ namespace IonMC {
   }
   export const ionmcDir = Path.resolve(path, ".ionmc");
   export const globalServersPath = Path.resolve(ionmcDir, "servers");
+  export const interfaceConfigPath = Path.resolve(ionmcDir, "interface.json");
   if (!fs.existsSync(ionmcDir)) {
     fs.mkdirSync(ionmcDir);
   }
   if (!fs.existsSync(globalServersPath)) {
     fs.mkdirSync(globalServersPath);
+  }
+  if (!fs.existsSync(interfaceConfigPath)) {
+    fs.writeFileSync(interfaceConfigPath, JSON.stringify(<InterfaceConfiguration>{
+      users: {}
+    }, null, 2));
+  }
+
+  export function getInterfaceConfig(): InterfaceConfiguration {
+    let config = JSON.parse(fs.readFileSync(interfaceConfigPath, "utf8"));
+    return InterfaceConfiguration.init(config);
   }
 
   async function exists(path: string) {
@@ -38,27 +50,30 @@ namespace IonMC {
     });
   }
 
+  interface ServerList {
+    global: string[],
+    local: string[]
+  }
+  
+  export async function listServers(): Promise<ServerList>;
+  /** @deprecated */export async function listServers(log: (...data: any[]) => void): Promise<ServerList>;
   export async function listServers(log: (...data: any[]) => void = console.log) {
-    const data = {
-      global: [] as string[],
-      local: [] as string[]
+    const data: ServerList = {
+      global: [],
+      local: []
     };
     let globalFiles = await fs.promises.readdir(IonMC.globalServersPath);
-    log("Global servers:");
     for (let i = 0; i < globalFiles.length; i++) {
       const file = globalFiles[i];
       if (await exists(Path.resolve(IonMC.globalServersPath, file, "server.jar")) || await exists(Path.resolve(IonMC.globalServersPath, file, "server.js"))) {
-        log("  @" + file);
         data.global.push(file);
       }
     }
 
     let files = await fs.promises.readdir("./");
-    log("\nServers in this directory:");
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (await exists(Path.resolve(file, "server.jar")) || await exists(Path.resolve(file, "server.js"))) {
-        log("  " + file);
         data.local.push(file);
       }
     }
@@ -352,7 +367,18 @@ namespace IonMC {
           Config.init(object, version);
         }
         else if (operator == "list") {
-          await IonMC.listServers();
+          const data = await IonMC.listServers();
+          console.log("Global servers:");
+          for (let i = 0; i < data.global.length; i++) {
+            const file = data.global[i];
+            console.log("  @" + file);
+          }
+      
+          console.log("\nServers in this directory:");
+          for (let i = 0; i < data.local.length; i++) {
+            const file = data.local[i];
+            console.log("  " + file);
+          }
         }
         else {
           return help();

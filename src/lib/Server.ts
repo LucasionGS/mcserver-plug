@@ -439,7 +439,7 @@ export class Server extends EventEmitter {
    * @returns A list of all global servers.
    */
   public static async getAllServers() {
-    return IonMC.listServers(() => void 0).then(res => res.global).then(async (files) => {
+    return IonMC.listServers().then(res => res.global).then(async (files) => {
       let servers: Server[] = [];
       for (let directory of files) {
         servers.push(Server.getServerByName(directory));
@@ -592,7 +592,7 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
     else {
       let tmp = ConsoleInfo.create({
         sender: "IonMC",
-        messageType: "WARN",
+        messageType: "INFO",
         // message: "Unable to parse: \"" + data + "\"",
         message: data,
         raw: true

@@ -19,8 +19,7 @@ export class ConsoleInfo<CommandData = null> {
     else {
       let tmp = ConsoleInfo.create({
         sender: "IonMC",
-        messageType: "WARN",
-        // message: "Unable to parse: \"" + data + "\"",
+        messageType: "INFO",
         message: data,
         raw: true
       })

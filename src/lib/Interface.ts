@@ -2,7 +2,8 @@ import express from "express";
 import Path from "path";
 import WebSocket from "ws";
 import IonMC from "./IonMC";
-import { ConsoleInfo, ServerProperties } from "./Server";
+import { ConsoleInfo } from "./Server";
+import ServerProperties from "../../shared/ServerProperties";
 import { Server } from "./Server";
 import { User } from "./User";
 import expressBasicAuth from "express-basic-auth";
@@ -261,13 +262,13 @@ namespace Manager {
   }
 
   export function getServerStatus(server: Server) {
-    const properties = server.parseProperties();
+    const properties = server.parseProperties() ?? {} as ServerProperties;
     return {
       name: server.name,
       status: server.getStatus(),
       players: server.userList.length,
-      maxPlayers: properties["max-players"],
-      port: properties["server-port"],
+      maxPlayers: properties["max-players"] ?? 0,
+      port: properties["server-port"] ?? 0,
     }
   }
 
@@ -292,4 +293,42 @@ function verifyToken() {
 
 router.get("/serverList", verifyToken(), async (req, res) => {
   res.json(await Manager.getAllServers().then(s => s.map(Manager.getServerStatus)));
+});
+
+router.get("/status", verifyToken(), async (req, res) => {
+  const server = Manager.getServerByName(req.query.server as string);
+  if (!server) {
+    res.status(404).send("Server not found");
+    return;
+  }
+  res.json(Manager.getServerStatus(server));
+});
+
+router.get("/server.properties", verifyToken(), async (req, res) => {
+  const server = Manager.getServerByName(req.query.name as string);
+  if (!server) {
+    res.status(404).send("Server not found");
+    return;
+  }
+  const props = Manager.getServerProperties(server);
+  if (!props) {
+    res.status(500).send("Failed to get server properties. Server needs to launch at least once before properties can be fetched.");
+    return;
+  }
+  res.json(props);
+});
+
+router.post("/server.properties", verifyToken(), express.json(), async (req, res) => {
+  const server = Manager.getServerByName(req.query.name as string);
+  if (!server) {
+    res.status(404).send("Server not found");
+    return;
+  }
+  const props = req.body as ServerProperties;
+  if (!props) {
+    res.status(400).send("No properties provided");
+    return;
+  }
+  server.setProperties(props);
+  res.json(Manager.getServerProperties(server));
 });

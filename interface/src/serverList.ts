@@ -1,12 +1,5 @@
+import { ServerItem } from "./objects/ServerItem";
 import { getToken } from "./token.js";
-
-interface ServerItem {
-  name: string;
-  players: number;
-  maxPlayers: number;
-  status: "running" | "starting" | "offline";
-  port: number;
-}
 
 function makeTd(content?: string) {
   const td = document.createElement("td");
@@ -29,7 +22,18 @@ function makeTh(content?: string) {
 function serverItem(server: ServerItem) {
 
   const tr = document.createElement("tr");
-  tr.appendChild(makeTd(server.name));
+  tr.appendChild(
+    (() => {
+      const td = makeTd();
+
+      const anchor = document.createElement("a");
+      anchor.href = "/server?server=" + server.name;
+      anchor.innerText = server.name;
+      td.appendChild(anchor);
+      
+      return td;
+    })()
+  );
   tr.appendChild(makeTd(server.players + "/" + server.maxPlayers));
   tr.appendChild(makeTd(server.status[0].toUpperCase() + server.status.slice(1)));
   tr.appendChild(makeTd(server.port.toString()));

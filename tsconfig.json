@@ -70,7 +70,8 @@
   },
   "exclude": [
     "node_modules",
-    "declarations"
+    "declarations",
+    "shared"
   ],
   "include": [
     "src"

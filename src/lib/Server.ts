@@ -10,6 +10,7 @@ import * as readline from "readline";
 import { TellRawTextObjectWithEvents } from "./CommandTypes";
 import { Config } from "./Configuration";
 import IonMC from "./IonMC";
+import ServerProperties from "../../shared/ServerProperties";
 
 interface ServerOptions {
   preventStart?: boolean;
@@ -502,58 +503,58 @@ interface Operator {
   "bypassesPlayerLimit": boolean
 }
 
-export interface ServerProperties {
-  "spawn-protection": number;
-  "max-tick-time": number;
-  "query.port": number;
-  "generator-settings": string;
-  "sync-chunk-writes": boolean;
-  "force-gamemode": boolean;
-  "allow-nether": boolean;
-  "enforce-whitelist": boolean;
-  "gamemode": string;
-  "broadcast-console-to-ops": boolean;
-  "enable-query": boolean;
-  "player-idle-timeout": number;
-  "text-filtering-config": string;
-  "difficulty": string;
-  "spawn-monsters": boolean;
-  "broadcast-rcon-to-ops": boolean;
-  "op-permission-level": number;
-  "pvp": boolean;
-  "entity-broadcast-range-percentage": number;
-  "snooper-enabled": boolean;
-  "level-type": string;
-  "hardcore": boolean;
-  "enable-status": boolean;
-  "enable-command-block": boolean;
-  "max-players": number;
-  "network-compression-threshold": number;
-  "resource-pack-sha1": string;
-  "max-world-size": number;
-  "function-permission-level": number;
-  "rcon.port": number;
-  "server-port": number;
-  "server-ip": string;
-  "spawn-npcs": boolean;
-  "allow-flight": boolean;
-  "level-name": string;
-  "view-distance": number;
-  "resource-pack": string;
-  "spawn-animals": boolean;
-  "white-list": boolean;
-  "rcon.password": string;
-  "generate-structures": boolean;
-  "online-mode": boolean;
-  "max-build-height": number;
-  "level-seed": string;
-  "prevent-proxy-connections": boolean;
-  "use-native-transport": boolean;
-  "enable-jmx-monitoring": boolean;
-  "motd": string;
-  "rate-limit": number;
-  "enable-rcon": boolean;
-}
+// export interface ServerProperties {
+//   "spawn-protection": number;
+//   "max-tick-time": number;
+//   "query.port": number;
+//   "generator-settings": string;
+//   "sync-chunk-writes": boolean;
+//   "force-gamemode": boolean;
+//   "allow-nether": boolean;
+//   "enforce-whitelist": boolean;
+//   "gamemode": string;
+//   "broadcast-console-to-ops": boolean;
+//   "enable-query": boolean;
+//   "player-idle-timeout": number;
+//   "text-filtering-config": string;
+//   "difficulty": string;
+//   "spawn-monsters": boolean;
+//   "broadcast-rcon-to-ops": boolean;
+//   "op-permission-level": number;
+//   "pvp": boolean;
+//   "entity-broadcast-range-percentage": number;
+//   "snooper-enabled": boolean;
+//   "level-type": string;
+//   "hardcore": boolean;
+//   "enable-status": boolean;
+//   "enable-command-block": boolean;
+//   "max-players": number;
+//   "network-compression-threshold": number;
+//   "resource-pack-sha1": string;
+//   "max-world-size": number;
+//   "function-permission-level": number;
+//   "rcon.port": number;
+//   "server-port": number;
+//   "server-ip": string;
+//   "spawn-npcs": boolean;
+//   "allow-flight": boolean;
+//   "level-name": string;
+//   "view-distance": number;
+//   "resource-pack": string;
+//   "spawn-animals": boolean;
+//   "white-list": boolean;
+//   "rcon.password": string;
+//   "generate-structures": boolean;
+//   "online-mode": boolean;
+//   "max-build-height": number;
+//   "level-seed": string;
+//   "prevent-proxy-connections": boolean;
+//   "use-native-transport": boolean;
+//   "enable-jmx-monitoring": boolean;
+//   "motd": string;
+//   "rate-limit": number;
+//   "enable-rcon": boolean;
+// }
 
 export type CommandMap = {
   list: {
@@ -593,7 +594,6 @@ export class ConsoleInfo<CommandData extends keyof CommandMap = null> {
       let tmp = ConsoleInfo.create({
         sender: "IonMC",
         messageType: "INFO",
-        // message: "Unable to parse: \"" + data + "\"",
         message: data,
         raw: true
       })

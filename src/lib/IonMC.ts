@@ -54,7 +54,7 @@ namespace IonMC {
     global: string[],
     local: string[]
   }
-  
+
   export async function listServers(): Promise<ServerList>;
   /** @deprecated */export async function listServers(log: (...data: any[]) => void): Promise<ServerList>;
   export async function listServers(log: (...data: any[]) => void = console.log) {
@@ -97,9 +97,9 @@ namespace IonMC {
 
   export async function executeCLI(args: string[]) {
     let [
-      operator, object, version, ...rest
+      operator, ...rest
     ]: [
-        "server" | "download" | "start" | "run" | "update" | "up" | "versions" | "version" | "init" | "list" | "ls" | "setglobal",
+        "server" | "download" | "start" | "run" | "update" | "up" | "versions" | "version" | "init" | "list" | "ls" | "setglobal" | "where",
         ...string[]
       ] = args as any;
 
@@ -122,72 +122,128 @@ namespace IonMC {
     }
 
     (async function command() {
+
+      /**
+       * Used for downloading a server.
+       * @param isUpdate Wheither or not this is an update. If false or undefined, it will be a new server.
+       * @returns 
+       */
+      async function downloadVersion(isUpdate: boolean = false) {
+        let [
+          object,
+          version
+        ] = rest;
+        if (!object) {
+          return help();
+        }
+        if (!version) {
+          if (isUpdate) {
+            return console.log("Please specify a version to update to.");
+          }
+          return console.log("Please specify a version to download.");
+        }
+        let isGlobal: boolean;
+        if (isGlobal = object.startsWith("@")) {
+          object = Path.resolve(IonMC.globalServersPath, object.substring(1));
+        }
+
+        let serverType: Api.ServerType = "vanilla";
+        if (version.includes("/")) {
+          [
+            serverType,
+            version
+          ] = version.split("/") as [Api.ServerType, string];
+        }
+
+        let fullPath = Path.resolve(object);
+        if (isUpdate) {
+          if (!fs.existsSync(fullPath)) {
+            return console.log(`Path ${fullPath} does not exist. Unable to update`);
+          }
+        }
+        else {
+          if (fs.existsSync(fullPath)) {
+            return console.log(`Path "${fullPath}" already exists`);
+          }
+        }
+        let serverVersion = await Api.getVersions()
+          .then(res => {
+            switch (version) {
+              case "latest":
+              case "l":
+                return res.versions.find(v => v.id == res.latest.release);
+
+              case "latest-snapshot":
+              case "ls":
+                return res.versions.find(v => v.id == res.latest.snapshot);
+
+              default:
+                return res.versions.find(v => v.id == version);
+            }
+          });
+        if (!serverVersion) {
+          return console.log(`Error: Unable to find version "${version}"`);
+        }
+
+        fs.mkdirSync(fullPath, { recursive: true });
+        Api.downloadServer(
+          Api.getRelease(
+            serverVersion
+          ), fullPath, "server", serverType).then(dl => {
+            dl.on("data", (_, r, t) => {
+              let received = new util.Byte(r);
+              let total = new util.Byte(t);
+              console.log(`Downloading ${serverType}/${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
+                + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
+              process.stdout.moveCursor(0, -2);
+            });
+
+            dl.on("finish", () => {
+
+              if (!isUpdate) {
+                console.log(
+                  "\n\n\nFinished download.\n" +
+                  `\tStart the using command "ionmc start ${isGlobal ? ("@" + Path.relative(IonMC.globalServersPath, object)) : (Path.relative(process.cwd(), object))}"\n`
+                );
+                fs.writeFileSync(Path.resolve(fullPath, "eula.txt"), "eula=true\n");
+                Config.init(fullPath, serverVersion.id);
+              }
+              else {
+                console.log("Finished update.");
+              }
+            });
+          });
+      }
+
       if (operator) {
         if (operator == "server") {
           return import("./Interface");
         }
-        else if (operator == "download") {
-          if (!object) {
-            return help();
-          }
-          if (object.startsWith("@")) {
-            if (!version)
-              version = object.substring(1);
-            object = Path.resolve(IonMC.globalServersPath, object.substring(1));
+        else if (operator == "where") {
+          // return import("./World");
+          let [
+            object
+          ] = rest;
+
+          if (object) {
+            let globalServers = (await listServers()).global;
+            if (globalServers.includes(object)) {
+              console.log(Path.resolve(IonMC.globalServersPath, object));
+            }
+            return;
           }
           else {
-            if (!version)
-              version = object;
+            console.log(IonMC.globalServersPath);
           }
-
-          let fullPath = Path.resolve(object);
-          if (fs.existsSync(fullPath)) {
-            return console.log(`Path "${fullPath}" already exists`);
-          }
-          let serverVersion = await Api.getVersions()
-            .then(res => {
-              switch (version) {
-                case "latest":
-                case "l":
-                  return res.versions.find(v => v.id == res.latest.release);
-
-                case "latest-snapshot":
-                case "ls":
-                  return res.versions.find(v => v.id == res.latest.snapshot);
-
-                default:
-                  return res.versions.find(v => v.id == version);
-              }
-            });
-          if (!serverVersion) {
-            return console.log(`Error: Unable to find version "${version}"`);
-          }
-
-          fs.mkdirSync(fullPath, { recursive: true });
-          Api.downloadServer(
-            Api.getRelease(
-              serverVersion
-            ), fullPath, "server").then(dl => {
-              dl.on("data", (_, r, t) => {
-                let received = new util.Byte(r);
-                let total = new util.Byte(t);
-                console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-                  + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
-                process.stdout.moveCursor(0, -2);
-              });
-
-              dl.on("finish", () => {
-
-                console.log(
-                  "\n\n\nFinished download.\n" +
-                  "\tStart the using command `ionmc start` in the directory.\n"
-                );
-                fs.writeFileSync(Path.resolve(fullPath, "eula.txt"), "eula=true\n");
-                Config.init(fullPath, serverVersion.id);
-              });
-            });
+        }
+        else if (operator == "download") {
+          return downloadVersion();
         }
         else if (operator == "start") {
+          let [
+            object
+          ] = rest;
+
           object || (object = "./");
           let objectType: "js" | "jar" | "dir";
           if (object.startsWith("@")) {
@@ -244,6 +300,9 @@ namespace IonMC {
           }
         }
         else if (operator == "setglobal") {
+          let [
+            object
+          ] = rest;
           object || (object = "./");
           let objectType: "js" | "jar" | "dir";
 
@@ -275,9 +334,9 @@ namespace IonMC {
           }
 
           let lnkName = basename(dirname(object));
-          if (version == "as") {
-            if (rest[0]) {
-              lnkName = rest[0].replace(/\//g, "_");
+          if (rest[1] == "as") {
+            if (rest[2]) {
+              lnkName = rest[2].replace(/\//g, "_");
             }
             else {
               return console.error("Error: Expected name after \"as\"");
@@ -289,60 +348,7 @@ namespace IonMC {
           );
         }
         else if (operator == "update") {
-          if (!object) {
-            return help();
-          }
-          if (object.startsWith("@")) {
-            if (!version)
-              version = object.substring(1);
-            object = Path.resolve(IonMC.globalServersPath, object.substring(1));
-          }
-          else {
-            if (!version)
-              version = object;
-          }
-
-          let fullPath = Path.resolve(object);
-          if (!fs.existsSync(fullPath)) {
-            return console.log(`Path "${fullPath}" doesn't exists`);
-          }
-          let serverVersion = await Api.getVersions()
-            .then(res => {
-              switch (version) {
-                case "latest":
-                case "l":
-                  return res.versions.find(v => v.id == res.latest.release);
-
-                case "latest-snapshot":
-                case "ls":
-                  return res.versions.find(v => v.id == res.latest.snapshot);
-
-                default:
-                  return res.versions.find(v => v.id == version);
-              }
-            });
-          if (!serverVersion) {
-            return console.log(`Error: Unable to find version "${version}"`);
-          }
-
-          fs.mkdirSync(fullPath, { recursive: true });
-          console.clear();
-          Api.downloadServer(
-            Api.getRelease(
-              serverVersion
-            ), fullPath, "server").then(dl => {
-              dl.on("data", (_, r, t) => {
-                let received = new util.Byte(r);
-                let total = new util.Byte(t);
-                process.stdout.cursorTo(0, 0);
-                console.log(`Downloading ${serverVersion.id}... ${dl.downloadPercentage.toFixed(2)}%          `
-                  + `\n${received.toAutoString()}/${total.toAutoString()}                 `);
-              });
-
-              dl.on("finish", () => {
-                console.log("Finished updating to version " + serverVersion.id + ".\n");
-              });
-            });
+          return downloadVersion(true);
         }
         else if (operator == "versions") {
           Api.getVersions().then(versions => {
@@ -361,6 +367,10 @@ namespace IonMC {
           );
         }
         else if (operator == "init") {
+          let [
+            object,
+            version
+          ] = rest;
           if (!version) {
             return help();
           }
@@ -373,7 +383,7 @@ namespace IonMC {
             const file = data.global[i];
             console.log("  @" + file);
           }
-      
+
           console.log("\nServers in this directory:");
           for (let i = 0; i < data.local.length; i++) {
             const file = data.local[i];
@@ -399,6 +409,14 @@ namespace IonMC {
     
         ionmc update [@]<server name> <version> - Update a server to a specific minecraft version
         ionmc update [@]<server name> latest | latest-snapshot - Update a server to a latest release or snapshot
+
+        Both download and update can use a server type other than vanilla.
+        To use a server type other than vanilla, use the following syntax:
+          ionmc download [@]<server name> <type/version>
+          ionmc update [@]<server name> <type/version>
+        Currently supported server types are:
+          - vanilla (This is the default when no type is specified)
+          - bukkit (Bukkit is still experimental)
     
         ionmc list - Show the list of global and current directory servers.
         ionmc setglobal <server name> - Add a server to the global server list.
@@ -407,15 +425,15 @@ namespace IonMC {
     
         ionmc start [[@][ <path to directory> | <path to jar> | <path to server.js> ]] - Start a server.
     
-        Explainations:
-        [@] means using creating/using a global server.
-        Global servers are installed in "${IonMC.globalServersPath}".
-        They can be accessed from any directory by adding @ in front of the server name.
-        Downloading a global server example: ionmc download "@My Server" latest
-        Starting a global server example: ionmc start "@My Server"
-    
-        If a server name is not found in the current directory, but does exist in the global server folder,
-        it will open the global server even without using "@".
+        Explanations:
+          [@] means using creating/using a global server.
+          Global servers are installed in "${IonMC.globalServersPath}".
+          They can be accessed from any directory by adding @ in front of the server name.
+          Downloading a global server example: ionmc download "@My Server" latest
+          Starting a global server example: ionmc start "@My Server"
+      
+          If a server name is not found in the current directory, but does exist in the global server folder,
+          it will open the global server even without using "@".
     `);
     }
   }

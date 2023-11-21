@@ -1,7 +1,7 @@
 {
   "name": "ionmc",
   "displayName": "IonMC Server Utility",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A management tool for downloading, updating, running, and interacting with minecraft servers.",
   "main": "dist/index.js",
   "directories": {
@@ -13,8 +13,8 @@
   },
   "scripts": {
     "test": "node ./tests/wrap.js",
-    "compile": "tsc -b . ./interface",
-    "watch": "tsc -b . ./interface -w"
+    "compile": "tsc",
+    "watch": "tsc --watch"
   },
   "keywords": [],
   "author": "",
